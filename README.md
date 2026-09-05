@@ -53,8 +53,8 @@ npm run dist:win   # NSIS .exe (x64)
 
 ## Релизы через GitHub Actions
 
-Workflow `.github/workflows/release.yml` запускается на тег вида `v*`, собирает `.exe` (windows-latest)
-и `.dmg` (macos-latest) и прикладывает их к GitHub Release с тем же тегом.
+Workflow `.github/workflows/release.yml` запускается на тег вида `v*`: два задания собирают `.exe` (windows-latest)
+и `.dmg` (macos-latest), третье создаёт GitHub Release с тем же тегом и прикладывает все инсталляторы.
 
 ```bash
 npm version 1.0.1          # обновит package.json и создаст тег v1.0.1

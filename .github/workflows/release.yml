@@ -20,9 +20,9 @@ jobs:
             args: --mac
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -33,17 +33,45 @@ jobs:
 
       - run: npm run build
 
-      - name: Package and upload to GitHub Release
-        run: npx electron-builder ${{ matrix.args }} --publish always
+      # Только собираем; публикует отдельное задание ниже, чтобы две ОС не создавали релиз наперегонки
+      - name: Package installers
+        run: npx electron-builder ${{ matrix.args }} --publish never
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # без подписи: на площадке приложение запускается через «Открыть» в контекстном меню
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: installers-${{ matrix.os }}
           path: |
             release/*.exe
             release/*.dmg
           if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v6
+        with:
+          pattern: installers-*
+          merge-multiple: true
+          path: installers
+
+      - run: ls -la installers
+
+      - name: Create GitHub Release with installers
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          files: installers/*
+          fail_on_unmatched_files: true
+          body: |
+            Рандомайзер «КВИЗ на БИС» ${{ github.ref_name }}
+
+            - `*-win-x64.exe` - установщик для Windows
+            - `*-mac-arm64.dmg` - macOS на Apple Silicon (M1 и новее)
+            - `*-mac-x64.dmg` - macOS на Intel
+
+            Сборки не подписаны: на macOS первый запуск через правый клик → «Открыть»,
+            на Windows SmartScreen → «Подробнее» → «Выполнить в любом случае».
