@@ -1,0 +1,328 @@
+.board-body {
+  cursor: none;
+}
+
+.board {
+  /* отступ от левого/правого края; переключается настройкой «Отступ по краям» */
+  --pad-l: 3.5vh;
+  --pad-r: 6.5vh;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at 50% 40%, #1a2fb5 0%, var(--blue) 45%, var(--blue-deep) 100%);
+}
+
+.board[data-edge='small'] {
+  --pad-l: 1.5vh;
+  --pad-r: 2.5vh;
+}
+
+.board[data-edge='large'] {
+  --pad-l: 8vh;
+  --pad-r: 13vh;
+}
+
+.board .pattern-bg {
+  background-size: max(1500px, 95vw) auto;
+  opacity: 0.12;
+}
+
+.glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 90vmin;
+  height: 90vmin;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 184, 41, 0.28) 0%, rgba(255, 184, 41, 0) 65%);
+  opacity: 0;
+  transition: opacity 0.6s;
+  pointer-events: none;
+}
+
+.board--done .glow {
+  opacity: 1;
+  animation: glow-pop 0.9s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+@keyframes glow-pop {
+  0% {
+    transform: translate(-50%, -50%) scale(0.4);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1vh;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------- ожидание ---------- */
+.idle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4vh;
+  animation: fade-in 0.6s;
+}
+
+.idle__logo {
+  width: min(60vw, 120vh);
+  filter: drop-shadow(0 1.5vh 4vh rgba(0, 0, 0, 0.4));
+  animation: idle-float 3.6s ease-in-out infinite;
+}
+
+@keyframes idle-float {
+  50% {
+    transform: translateY(-2vh);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ---------- цифра ---------- */
+.number {
+  --digits: 1;
+  /* цифра ≈ 70% высоты: у Montserrat цифры ~0.7em, поэтому кегль ~100vh; по ширине ограничиваем */
+  font-size: min(88vh, calc((100vw - var(--pad-l) - var(--pad-r)) * 1.4 / var(--digits)));
+  line-height: 0.82;
+  font-weight: 900;
+  color: var(--yellow);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  text-shadow: 0 0.04em 0 rgba(0, 0, 0, 0.25), 0 0.06em 0.3em rgba(0, 0, 0, 0.35);
+  will-change: transform, filter;
+  padding: 0 0.05em 0.06em; /* запас, чтобы тень не срезалась */
+}
+
+.number--with-team {
+  font-size: min(74vh, calc((100vw - var(--pad-l) - var(--pad-r)) * 1.4 / var(--digits)));
+}
+
+/* смена числа при прокрутке - четыре варианта. Переменные задают имя/длительность/кривую,
+   чтобы финальное число входило той же анимацией, что и остальные */
+.number--tick {
+  animation: var(--tick-name, tick-drum) var(--tick-dur, 0.16s) var(--tick-ease, ease-out);
+}
+
+/* барабан: короткий вертикальный рывок */
+.number--drum {
+  --tick-name: tick-drum;
+  --tick-dur: 0.16s;
+  --tick-ease: ease-out;
+}
+
+@keyframes tick-drum {
+  0% {
+    transform: translateY(-0.12em) scaleY(1.08);
+    filter: blur(0.02em) brightness(1.2);
+    opacity: 0.85;
+  }
+  100% {
+    transform: none;
+    filter: none;
+    opacity: 1;
+  }
+}
+
+/* переворот: цифра прокручивается вокруг горизонтальной оси, как табло в аэропорту */
+.number--flip {
+  --tick-name: tick-flip;
+  --tick-dur: 0.2s;
+  --tick-ease: cubic-bezier(0.2, 0.7, 0.3, 1);
+  transform-style: preserve-3d;
+}
+
+@keyframes tick-flip {
+  0% {
+    transform: perspective(1.6em) rotateX(-80deg);
+    opacity: 0.4;
+    filter: brightness(0.6);
+  }
+  100% {
+    transform: perspective(1.6em) rotateX(0);
+    opacity: 1;
+    filter: none;
+  }
+}
+
+/* зум: цифра «прилетает» из глубины с размытием */
+.number--zoom {
+  --tick-name: tick-zoom;
+  --tick-dur: 0.18s;
+  --tick-ease: ease-out;
+}
+
+@keyframes tick-zoom {
+  0% {
+    transform: scale(1.45);
+    filter: blur(0.04em);
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(1);
+    filter: none;
+    opacity: 1;
+  }
+}
+
+/* сдвиг: цифры пролетают справа налево */
+.number--slide {
+  --tick-name: tick-slide;
+  --tick-dur: 0.18s;
+  --tick-ease: cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+@keyframes tick-slide {
+  0% {
+    transform: translateX(0.45em) skewX(-8deg);
+    filter: blur(0.03em);
+    opacity: 0.2;
+  }
+  100% {
+    transform: none;
+    filter: none;
+    opacity: 1;
+  }
+}
+
+/* объявление победителя: число уже стоит на экране, оно пружинит и подсвечивается без перемонтирования */
+.number--done {
+  animation: settle 0.7s cubic-bezier(0.22, 1.4, 0.36, 1) forwards;
+  text-shadow: 0 0.04em 0 rgba(0, 0, 0, 0.25), 0 0 0.35em rgba(255, 184, 41, 0.55), 0 0.06em 0.3em rgba(0, 0, 0, 0.35);
+  transition: text-shadow 0.4s;
+}
+
+@keyframes settle {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.09);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.team {
+  min-height: 10vh;
+  max-width: calc(100vw - var(--pad-l) - var(--pad-r));
+  text-align: center;
+  font-weight: 800;
+  font-size: 8vh;
+  line-height: 1.1;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--white);
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  transition: opacity 0.15s;
+}
+
+.team--long {
+  font-size: 6vh;
+}
+
+.team--spinning {
+  opacity: 0.35;
+}
+
+.team--stamp {
+  animation: team-in 0.5s 0.1s cubic-bezier(0.22, 1.4, 0.36, 1) both;
+}
+
+@keyframes team-in {
+  0% {
+    transform: translateY(0.12em);
+    opacity: 0.35;
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.confetti {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* логотип в углу во время розыгрыша */
+.logo {
+  position: absolute;
+  top: 3vh;
+  right: var(--pad-r);
+  width: min(16vw, 25vh);
+  opacity: 0.95;
+  filter: drop-shadow(0 0.6vh 1.6vh rgba(0, 0, 0, 0.4));
+}
+
+/* история выпавших чисел, левый верхний угол */
+.history {
+  position: absolute;
+  top: 3vh;
+  left: var(--pad-l);
+  max-width: 34vw;
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  gap: 1vh;
+  animation: fade-in 0.4s;
+}
+
+.history__list {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  gap: 0.6vh 2.5vh;
+  max-height: 52vh;
+}
+
+.history__item {
+  display: flex;
+  align-items: baseline;
+  gap: 1vh;
+  font-size: 3.2vh;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.history__num {
+  min-width: 2.2em;
+  font-weight: 900;
+  color: var(--yellow);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.history__team {
+  font-weight: 700;
+  font-size: 0.72em;
+  color: rgba(255, 255, 255, 0.85);
+  max-width: 24vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

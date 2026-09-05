@@ -1,0 +1,27 @@
+# зависимости
+node_modules/
+
+# результаты сборки
+out/
+dist/
+release/
+*.tsbuildinfo
+.vite/
+
+# кэш electron-builder
+.cache/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# ОС
+.DS_Store
+Thumbs.db
+
+# логи и локальное окружение
+*.log
+npm-debug.log*
+.env
+.env.*
