@@ -14,6 +14,9 @@ import {
   type History,
   type SpinPayload
 } from '@shared/types'
+import { type Preset, type Theme } from '@shared/theme'
+import { ThemePanel } from './ThemePanel'
+import { Section } from './Section'
 
 interface Form {
   from: string
@@ -25,6 +28,9 @@ interface Form {
   showHistory: boolean
   edgeMargin: EdgeMargin
   alwaysOnTop: boolean
+  theme: Theme
+  presetId: string
+  boardDisplay: 'auto' | number
 }
 
 interface LastResult {
@@ -44,6 +50,7 @@ export function ControlApp(): React.JSX.Element {
   const [last, setLast] = useState<LastResult | null>(null)
   const [history, setHistory] = useState<History>([])
   const [gutterScroll, setGutterScroll] = useState(0)
+  const [themeOpen, setThemeOpen] = useState(false)
   const saveTimer = useRef<number | undefined>(undefined)
   const spinTimer = useRef<number | undefined>(undefined)
 
@@ -59,7 +66,10 @@ export function ControlApp(): React.JSX.Element {
         allowRepeat: s.allowRepeat,
         showHistory: s.showHistory,
         edgeMargin: s.edgeMargin,
-        alwaysOnTop: s.alwaysOnTop
+        alwaysOnTop: s.alwaysOnTop,
+        theme: s.theme,
+        presetId: s.presetId,
+        boardDisplay: s.boardDisplay
       })
     )
     void window.api.getDisplays().then(setDisplays)
@@ -120,9 +130,12 @@ export function ControlApp(): React.JSX.Element {
         allowRepeat: form.allowRepeat,
         showHistory: form.showHistory,
         edgeMargin: form.edgeMargin,
-        alwaysOnTop: form.alwaysOnTop
+        alwaysOnTop: form.alwaysOnTop,
+        theme: form.theme,
+        presetId: form.presetId,
+        boardDisplay: form.boardDisplay
       })
-    }, 400)
+    }, 250)
     return () => window.clearTimeout(saveTimer.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -135,6 +148,9 @@ export function ControlApp(): React.JSX.Element {
     form?.showHistory,
     form?.edgeMargin,
     form?.alwaysOnTop,
+    form?.theme,
+    form?.presetId,
+    form?.boardDisplay,
     error
   ])
 
@@ -149,7 +165,10 @@ export function ControlApp(): React.JSX.Element {
       allowRepeat: form.allowRepeat,
       showHistory: form.showHistory,
       edgeMargin: form.edgeMargin,
-      alwaysOnTop: form.alwaysOnTop
+      alwaysOnTop: form.alwaysOnTop,
+      theme: form.theme,
+      presetId: form.presetId,
+      boardDisplay: form.boardDisplay
     })
   }, [form, error, spinning, exhausted, from, to, duration, teams])
 
@@ -168,9 +187,31 @@ export function ControlApp(): React.JSX.Element {
     return () => window.removeEventListener('keydown', h)
   }, [start])
 
+  const updateTheme = useCallback((patch: Partial<Theme>) => {
+    setForm((f) => (f ? { ...f, theme: { ...f.theme, ...patch } } : f))
+  }, [])
+  const applyPreset = useCallback((p: Preset) => {
+    setForm((f) => (f ? { ...f, theme: p.theme, presetId: p.id } : f))
+  }, [])
+
+  useEffect(() => {
+    if (!form) return
+    document.title = form.theme.title ? `Рандомайзер - ${form.theme.title}` : 'Рандомайзер'
+  }, [form?.theme.title])
+
+  useEffect(() => {
+    if (!themeOpen) return
+    const h = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setThemeOpen(false)
+    }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [themeOpen])
+
   if (!form) return <div className="control" />
 
   const dispOk = displays?.hasSecondary ?? false
+  const targetLabel = displays?.displays.find((d) => d.id === displays.targetId)?.label.replace(/ · .*$/, '') ?? null
   const drawn = new Set(history)
   const lineCount = Math.max(1, form.teamsText.split('\n').length)
 
@@ -178,37 +219,60 @@ export function ControlApp(): React.JSX.Element {
     <div className="control">
       <div className="scroll">
         {/* ---- табло ---- */}
-        <div className={`bar ${dispOk ? 'bar--ok' : ''}`}>
-          <span className="bar__dot" />
-          <span className="bar__text">
-            {dispOk ? (
-              <>
-                Дисплей <b>{displays?.secondaryLabel}</b>
-                {displays?.boardVisible ? (displays?.boardFullscreen ? ' · весь экран' : ' · в окне') : ' · табло скрыто'}
-              </>
-            ) : (
-              <>Второй дисплей не найден</>
-            )}
-          </span>
-          <button
-            className="btn btn--ghost"
-            title={displays?.boardVisible ? 'Скрыть окно табло' : 'Показать окно табло'}
-            onClick={() => void (displays?.boardVisible ? window.api.hideBoard() : window.api.showBoard())}
-          >
-            {displays?.boardVisible ? 'Скрыть' : 'Показать'}
-          </button>
-          <button
-            className="btn btn--ghost"
-            title={displays?.boardFullscreen ? 'Выйти из полного экрана' : 'Табло на весь экран'}
-            onClick={() => void window.api.setBoardFullscreen(!displays?.boardFullscreen)}
-          >
-            {displays?.boardFullscreen ? 'Окно' : 'Весь экран'}
-          </button>
-        </div>
+        <Section id="board" title="Табло">
+          <div className="form">
+            <label className="form__label" htmlFor="display">
+              Дисплей
+            </label>
+            <select
+              id="display"
+              value={form.boardDisplay === 'auto' ? 'auto' : String(form.boardDisplay)}
+              onChange={(e) => update({ boardDisplay: e.target.value === 'auto' ? 'auto' : Number(e.target.value) })}
+            >
+              <option value="auto">Авто (второй дисплей)</option>
+              {(displays?.displays ?? []).map((d) => (
+                <option key={d.id} value={String(d.id)}>
+                  {d.label}
+                </option>
+              ))}
+              {form.boardDisplay !== 'auto' && !displays?.displays.some((d) => d.id === form.boardDisplay) && (
+                <option value={String(form.boardDisplay)}>Выбранный дисплей не подключён</option>
+              )}
+            </select>
+            <span className="form__label">Состояние</span>
+            <span className={`status ${displays?.boardVisible ? 'status--on' : ''}`}>
+              <span className="status__dot" />
+              {!displays?.boardVisible
+                ? 'Скрыто'
+                : displays.boardFullscreen
+                  ? `Весь экран${targetLabel ? ` · ${targetLabel}` : ''}`
+                  : dispOk
+                    ? 'В окне'
+                    : 'В окне · второй дисплей не найден'}
+            </span>
+          </div>
+          <div className="btn-grid btn-grid--3">
+            <button
+              className="btn"
+              onClick={() => void (displays?.boardVisible ? window.api.hideBoard() : window.api.showBoard())}
+            >
+              {displays?.boardVisible ? 'Скрыть' : 'Показать'}
+            </button>
+            <button
+              className="btn"
+              disabled={!displays?.boardVisible}
+              onClick={() => void window.api.setBoardFullscreen(!displays?.boardFullscreen)}
+            >
+              {displays?.boardFullscreen ? 'В окно' : 'Весь экран'}
+            </button>
+            <button className="btn" onClick={() => setThemeOpen(true)}>
+              Оформление…
+            </button>
+          </div>
+        </Section>
 
         {/* ---- розыгрыш ---- */}
-        <section className="section">
-          <h2 className="section__title">Розыгрыш</h2>
+        <Section id="draw" title="Розыгрыш">
           <div className="row row--3">
             <div className="field">
               <label htmlFor="from">От</label>
@@ -292,14 +356,10 @@ export function ControlApp(): React.JSX.Element {
             </label>
           </div>
           {error && <div className="error">{error}</div>}
-        </section>
+        </Section>
 
         {/* ---- команды ---- */}
-        <section className="section">
-          <h2 className="section__title">
-            Команды
-            {teamsMode ? <span className="section__meta">{teams.length} · диапазон 1-{teams.length}</span> : <span className="section__meta">пусто - только цифры</span>}
-          </h2>
+        <Section id="teams" title="Команды" meta={teamsMode ? `${teams.length} · диапазон 1-${teams.length}` : 'пусто - только цифры'}>
           <div className="teams">
             <div className="teams__gutter" aria-hidden="true">
               <div style={{ transform: `translateY(-${gutterScroll}px)` }}>
@@ -320,19 +380,15 @@ export function ControlApp(): React.JSX.Element {
               onScroll={(e) => setGutterScroll(e.currentTarget.scrollTop)}
             />
           </div>
-        </section>
+        </Section>
 
         {/* ---- история ---- */}
-        <section className="section">
-          <h2 className="section__title">
-            Выпали
-            <span className="section__meta">{history.length}</span>
-            {history.length > 0 && (
-              <button className="btn btn--ghost section__action" onClick={() => void window.api.resetHistory()}>
-                Сбросить
-              </button>
-            )}
-          </h2>
+        <Section id="history" title="Выпали" meta={history.length}>
+          {history.length > 0 && (
+            <button className="btn btn--small" onClick={() => void window.api.resetHistory()}>
+              Сбросить
+            </button>
+          )}
           <div className="chips">
             {history.length === 0 && <span className="chips__empty">Пока ничего не выпало</span>}
             {history.map((n, i) => {
@@ -345,8 +401,18 @@ export function ControlApp(): React.JSX.Element {
               )
             })}
           </div>
-        </section>
+        </Section>
       </div>
+
+      {themeOpen && (
+        <ThemePanel
+          theme={form.theme}
+          presetId={form.presetId}
+          onChange={updateTheme}
+          onApplyPreset={applyPreset}
+          onClose={() => setThemeOpen(false)}
+        />
+      )}
 
       {/* ---- закреплённый низ: СТАРТ и последний результат ---- */}
       <div className="footer">

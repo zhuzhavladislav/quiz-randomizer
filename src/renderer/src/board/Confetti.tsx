@@ -13,11 +13,13 @@ interface Particle {
   life: number
 }
 
-const COLORS = ['#ffb829', '#ffdd2a', '#ffffff', '#8fa3ff', '#ffb829']
+const DEFAULT_COLORS = ['#ffb829', '#ffdd2a', '#ffffff', '#8fa3ff', '#ffb829']
 
 /** Лёгкое конфетти на canvas без зависимостей; запускается при смене `burst` */
-export function Confetti({ burst }: { burst: number }): React.JSX.Element {
+export function Confetti({ burst, colors }: { burst: number; colors?: string[] }): React.JSX.Element {
   const ref = useRef<HTMLCanvasElement>(null)
+  const colorsRef = useRef(colors ?? DEFAULT_COLORS)
+  colorsRef.current = colors && colors.length ? colors : DEFAULT_COLORS
 
   useEffect(() => {
     if (!burst) return
@@ -30,6 +32,7 @@ export function Confetti({ burst }: { burst: number }): React.JSX.Element {
     const W = (canvas.width = canvas.clientWidth * dpr)
     const H = (canvas.height = canvas.clientHeight * dpr)
 
+    const COLORS = colorsRef.current
     const parts: Particle[] = []
     const spawn = (cx: number, cy: number, n: number, spread: number): void => {
       for (let i = 0; i < n; i++) {

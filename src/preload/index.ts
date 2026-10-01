@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
-import { IPC, type BoardState, type DisplayStatus, type History, type Settings, type SpinPayload } from '@shared/types'
+import { IPC, type BoardState, type DisplayStatus, type History, type PickedAsset, type Settings, type SpinPayload } from '@shared/types'
+import type { Preset, Theme } from '@shared/theme'
 
 type Unsubscribe = () => void
 
@@ -23,6 +24,12 @@ const api = {
   showBoard: (): Promise<DisplayStatus> => ipcRenderer.invoke(IPC.boardShow),
   hideBoard: (): Promise<DisplayStatus> => ipcRenderer.invoke(IPC.boardHide),
   setBoardFullscreen: (on: boolean): Promise<DisplayStatus> => ipcRenderer.invoke(IPC.boardSetFullscreen, on),
+  listPresets: (): Promise<Preset[]> => ipcRenderer.invoke(IPC.presetsList),
+  savePreset: (input: { id?: string; name: string; theme: Theme }): Promise<Preset[]> => ipcRenderer.invoke(IPC.presetsSave, input),
+  deletePreset: (id: string): Promise<Preset[]> => ipcRenderer.invoke(IPC.presetsDelete, id),
+  exportPreset: (id: string): Promise<boolean> => ipcRenderer.invoke(IPC.presetsExport, id),
+  importPreset: (): Promise<{ presets: Preset[]; imported: Preset | null; error?: string }> => ipcRenderer.invoke(IPC.presetsImport),
+  pickAsset: (kind: 'font' | 'image'): Promise<PickedAsset | null> => ipcRenderer.invoke(IPC.assetPick, kind),
 
   /* --- табло --- */
   onSpin: (cb: (p: SpinPayload) => void): Unsubscribe => subscribe(IPC.boardSpin, cb),
@@ -30,6 +37,8 @@ const api = {
   onBoardState: (cb: (h: BoardState) => void): Unsubscribe => subscribe(IPC.boardState, cb),
   onBoardReset: (cb: () => void): Unsubscribe => subscribe(IPC.boardReset, cb),
   requestDraw: (): Promise<SpinPayload | null> => ipcRenderer.invoke(IPC.drawRequest),
+  /** Табло сообщает, что тема (паттерн, логотип, шрифт) загружена и окно можно показывать */
+  boardReady: (): void => ipcRenderer.send(IPC.boardReady),
   boardEscape: (): void => ipcRenderer.send(IPC.boardEscape),
   boardToggleFullscreen: (): void => ipcRenderer.send(IPC.boardToggleFullscreen)
 }

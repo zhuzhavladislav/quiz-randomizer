@@ -1,7 +1,44 @@
 import { useEffect, useRef, useState } from 'react'
 import { REVEAL_DELAY_MS, teamForNumber, type BoardState, type ConcreteAnimation, type SpinPayload } from '@shared/types'
-import logo from '../assets/img/logo.png'
+import { DEFAULT_THEME, themeFontFamily, type Theme } from '@shared/theme'
 import { Confetti } from './Confetti'
+
+/** Регистрирует файл шрифта пользователя как семейство ThemeFont (все веса - из одного файла) */
+async function loadThemeFont(url: string): Promise<void> {
+  for (const f of document.fonts) if (f.family === 'ThemeFont') document.fonts.delete(f)
+  if (!url) return
+  try {
+    const face = new FontFace('ThemeFont', `url("${url}")`, { weight: '100 900', display: 'block' })
+    await face.load()
+    document.fonts.add(face)
+  } catch (e) {
+    console.error('Не удалось загрузить шрифт темы:', e)
+  }
+}
+
+function imageUrl(kind: Theme['logoKind'], url: string): string | null {
+  return kind === 'file' && url ? url : null
+}
+
+function preloadImage(url: string | null): Promise<void> {
+  if (!url) return Promise.resolve()
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => resolve()
+    img.onerror = () => resolve()
+    img.src = url
+  })
+}
+
+/** Ждёт картинки и шрифт темы (не дольше 4 с), чтобы табло появилось сразу готовым */
+async function preloadTheme(t: Theme): Promise<void> {
+  const work = Promise.all([
+    preloadImage(imageUrl(t.patternKind, t.patternUrl)),
+    preloadImage(imageUrl(t.logoKind, t.logoUrl)),
+    t.fontKind === 'file' ? loadThemeFont(t.fontId) : document.fonts.load(`900 100px ${themeFontFamily(t)}`).then(() => undefined)
+  ])
+  await Promise.race([work, new Promise((r) => setTimeout(r, 4000))])
+}
 
 /** landed - барабан остановился, число показано, но ещё не объявлено победным */
 type Phase = 'idle' | 'spinning' | 'landed' | 'done'
@@ -35,16 +72,32 @@ export function BoardApp(): React.JSX.Element {
   const [burst, setBurst] = useState(0)
   const [teamsMode, setTeamsMode] = useState(false)
   const [animation, setAnimation] = useState<ConcreteAnimation>('drum')
-  const [hist, setHist] = useState<BoardState>({ history: [], showHistory: true, edgeMargin: 'medium' })
+  const [hist, setHist] = useState<BoardState>({ history: [], showHistory: true, edgeMargin: 'medium', theme: DEFAULT_THEME })
   const [teams, setTeams] = useState<string[]>([])
   const rafRef = useRef(0)
   const revealRef = useRef<number | undefined>(undefined)
 
-  // История выпавших чисел: начальное состояние и обновления (сброс, переключение показа)
+  // История выпавших чисел и тема: начальное состояние и обновления из окна настроек.
+  // Окно показывается только после загрузки картинок и шрифта темы - чтобы паттерн не «проявлялся» на глазах
   useEffect(() => {
-    void window.api.getBoardState().then(setHist)
+    void window.api.getBoardState().then(async (st) => {
+      setHist(st)
+      await preloadTheme(st.theme)
+      window.api.boardReady()
+    })
     return window.api.onBoardState(setHist)
   }, [])
+
+  const theme = hist.theme
+
+  // Шрифт из файла и заголовок окна следуют за темой
+  useEffect(() => {
+    void loadThemeFont(theme.fontKind === 'file' ? theme.fontId : '')
+  }, [theme.fontKind, theme.fontId])
+  useEffect(() => {
+    document.title = theme.title ? `Табло - ${theme.title}` : 'Табло'
+    document.body.style.backgroundColor = theme.bgColor
+  }, [theme.title, theme.bgColor])
 
   useEffect(() => {
     const unsubscribe = window.api.onSpin((p: SpinPayload) => {
@@ -53,7 +106,7 @@ export function BoardApp(): React.JSX.Element {
       setTeamsMode(p.teams.length > 0)
       setTeams(p.teams)
       setAnimation(p.animation)
-      setHist({ history: p.history, showHistory: p.showHistory, edgeMargin: p.edgeMargin })
+      setHist((h) => ({ ...h, history: p.history, showHistory: p.showHistory, edgeMargin: p.edgeMargin }))
       setPhase('spinning')
 
       const start = performance.now()
@@ -143,19 +196,37 @@ export function BoardApp(): React.JSX.Element {
 
   const digits = Math.max(1, String(Math.abs(view.number)).length + (view.number < 0 ? 1 : 0))
   const teamLong = (view.team?.length ?? 0) > 18
+  const logoSrc = imageUrl(theme.logoKind, theme.logoUrl)
+  const patternSrc = imageUrl(theme.patternKind, theme.patternUrl)
+  const themeVars = {
+    '--bg': theme.bgColor,
+    '--digit': theme.digitColor,
+    '--text': theme.textColor,
+    '--shadow': theme.shadowColor,
+    '--shadow-a': theme.shadowOpacity,
+    '--font': themeFontFamily(theme),
+    '--pattern-opacity': theme.patternOpacity,
+    '--pattern-scale': theme.patternScale,
+    '--logo-scale': theme.logoScale
+  } as React.CSSProperties
 
   return (
     <div
-      className={`board board--${phase}`}
+      className={`board board--${phase} ${theme.bgGlow ? 'board--glow' : ''}`}
       data-edge={hist.edgeMargin}
+      style={themeVars}
       onDoubleClick={() => window.api.boardToggleFullscreen()}>
-      <div className="pattern-bg" />
+      {patternSrc && <div className="pattern-bg" style={{ backgroundImage: `url("${patternSrc}")` }} />}
       <div className="glow" />
 
       <div className="stage">
         {phase === 'idle' ? (
           <div className="idle">
-            <img className="idle__logo" src={logo} alt="КВИЗ на БИС" />
+            {logoSrc ? (
+              <img className="idle__logo" src={logoSrc} alt={theme.title} />
+            ) : (
+              theme.title && <div className="idle__title">{theme.title}</div>
+            )}
           </div>
         ) : (
           <>
@@ -187,9 +258,9 @@ export function BoardApp(): React.JSX.Element {
         )}
       </div>
 
-      <Confetti burst={burst} />
+      {theme.confetti && <Confetti burst={burst} colors={theme.confettiColors} />}
 
-      {phase !== 'idle' && <img className="logo" src={logo} alt="КВИЗ на БИС" />}
+      {phase !== 'idle' && logoSrc && <img className="logo" src={logoSrc} alt="" />}
 
       {hist.showHistory && hist.history.length > 0 && (
         <div className="history">

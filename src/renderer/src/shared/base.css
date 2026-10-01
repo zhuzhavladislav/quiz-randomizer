@@ -64,11 +64,11 @@ body {
   user-select: none;
 }
 
-/* Фирменный паттерн поверх синего, едва заметный */
+/* Паттерн поверх фона; картинку задаёт табло из темы */
 .pattern-bg {
   position: fixed;
   inset: 0;
-  background: url('../assets/img/pattern.webp') center / 720px auto repeat;
+  background: center / 720px auto repeat;
   opacity: 0.12;
   pointer-events: none;
 }

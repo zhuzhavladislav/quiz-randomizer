@@ -1,3 +1,5 @@
+import { DEFAULT_PRESET_ID, DEFAULT_THEME, type Theme } from './theme'
+
 /** Варианты анимации прокрутки; random - табло выбирает случайный на каждый розыгрыш */
 export const ANIMATIONS = ['drum', 'flip', 'zoom', 'slide', 'random'] as const
 export type Animation = (typeof ANIMATIONS)[number]
@@ -36,6 +38,11 @@ export interface Settings {
   edgeMargin: EdgeMargin
   /** Окно настроек поверх всех окон */
   alwaysOnTop: boolean
+  theme: Theme
+  /** Пресет, от которого отталкивается текущая тема (для подписи «изменён») */
+  presetId: string
+  /** Дисплей для табло: 'auto' - второй (не основной), иначе id дисплея */
+  boardDisplay: 'auto' | number
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -47,7 +54,10 @@ export const DEFAULT_SETTINGS: Settings = {
   allowRepeat: false,
   showHistory: true,
   edgeMargin: 'medium',
-  alwaysOnTop: false
+  alwaysOnTop: false,
+  theme: DEFAULT_THEME,
+  presetId: DEFAULT_PRESET_ID,
+  boardDisplay: 'auto'
 }
 
 /** Пауза между остановкой барабана и объявлением победителя */
@@ -75,13 +85,29 @@ export interface BoardState {
   history: History
   showHistory: boolean
   edgeMargin: EdgeMargin
+  theme: Theme
+}
+
+/** Выбранный пользователем файл, скопированный в папку данных приложения */
+export interface PickedAsset {
+  url: string
+  name: string
 }
 
 /** Уже выпавшие числа в текущей сессии (в порядке выпадения) */
 export type History = number[]
 
+export interface DisplayInfo {
+  id: number
+  /** Например «LG HDR 4K · 3840×2160» */
+  label: string
+  primary: boolean
+}
+
 export interface DisplayStatus {
-  count: number
+  displays: DisplayInfo[]
+  /** Дисплей, выбранный для табло (с учётом «авто»); null - подходящего нет, табло в окне */
+  targetId: number | null
   hasSecondary: boolean
   /** Например «2560×1440» */
   secondaryLabel: string | null
@@ -107,6 +133,13 @@ export const IPC = {
   boardStateGet: 'board:state-get',
   boardState: 'board:state',
   boardReset: 'board:reset',
+  boardReady: 'board:ready',
+  presetsList: 'presets:list',
+  presetsSave: 'presets:save',
+  presetsDelete: 'presets:delete',
+  presetsExport: 'presets:export',
+  presetsImport: 'presets:import',
+  assetPick: 'asset:pick',
   boardEscape: 'board:escape',
   boardToggleFullscreen: 'board:toggle-fullscreen'
 } as const

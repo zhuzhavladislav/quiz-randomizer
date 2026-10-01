@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, screen, shell, type Display } from 'electron'
+import { app, BrowserWindow, ipcMain, screen, session, shell, type Display } from 'electron'
 import { join } from 'node:path'
 import { randomInt } from 'node:crypto'
 import {
@@ -7,6 +7,7 @@ import {
   IPC,
   type BoardState,
   type ConcreteAnimation,
+  type DisplayInfo,
   type DisplayStatus,
   type History,
   REVEAL_DELAY_MS,
@@ -15,6 +16,13 @@ import {
 } from '@shared/types'
 import { loadSettings, sanitize, saveSettings } from './settings'
 import { loadWindowBounds, trackWindowBounds } from './windowState'
+import { deletePreset, exportPreset, importPreset, listPresets, savePreset, seedPresets } from './presets'
+import { seedBundledAssets } from './seed'
+import { pickAsset, registerAssetScheme, serveAssets } from './assets'
+import { themesEqual, type Preset, type Theme } from '@shared/theme'
+
+// Схему для файлов пользователя нужно объявить до готовности app
+registerAssetScheme()
 
 const isDev = !!process.env['ELECTRON_RENDERER_URL']
 
@@ -45,10 +53,27 @@ function secondaryDisplay(): Display | null {
   return screen.getAllDisplays().find((d) => d.id !== primary.id) ?? null
 }
 
+/** Дисплей для табло по настройке: конкретный id, если он подключён, иначе второй (не основной) */
+function targetDisplay(): Display | null {
+  const want = loadSettings().boardDisplay
+  if (want !== 'auto') {
+    const d = screen.getAllDisplays().find((x) => x.id === want)
+    if (d) return d
+  }
+  return secondaryDisplay()
+}
+
+function displayInfo(d: Display): DisplayInfo {
+  const primary = d.id === screen.getPrimaryDisplay().id
+  const name = d.label?.trim() || 'Дисплей'
+  return { id: d.id, label: `${name} · ${d.size.width}×${d.size.height}${primary ? ' (основной)' : ''}`, primary }
+}
+
 function displayStatus(): DisplayStatus {
-  const sec = secondaryDisplay()
+  const sec = targetDisplay()
   return {
-    count: screen.getAllDisplays().length,
+    displays: screen.getAllDisplays().map(displayInfo),
+    targetId: sec?.id ?? null,
     hasSecondary: !!sec,
     secondaryLabel: sec ? `${sec.size.width}×${sec.size.height}` : null,
     boardFullscreen: !!boardWin && !boardWin.isDestroyed() && boardWin.isFullScreen(),
@@ -58,7 +83,7 @@ function displayStatus(): DisplayStatus {
 
 function boardState(): BoardState {
   const s = loadSettings()
-  return { history, showHistory: s.showHistory, edgeMargin: s.edgeMargin }
+  return { history, showHistory: s.showHistory, edgeMargin: s.edgeMargin, theme: s.theme }
 }
 
 /** Рассылает историю окну настроек и (если toBoard) табло */
@@ -104,8 +129,8 @@ function createControlWindow(): void {
     ...(saved ?? { width: 440, height: 720 }),
     minWidth: 380,
     minHeight: 440,
-    title: 'Рандомайзер - КВИЗ на БИС',
-    backgroundColor: '#00148b',
+    title: 'Рандомайзер',
+    backgroundColor: '#1e1e1e',
     autoHideMenuBar: true,
     show: false,
     webPreferences: {
@@ -153,7 +178,7 @@ function createControlWindow(): void {
 }
 
 function createBoardWindow(): void {
-  const sec = secondaryDisplay()
+  const sec = targetDisplay()
   boardDisplayId = sec?.id ?? null
   // Без второго дисплея табло - обычное окно, помним его положение и размер
   const savedBoard = sec ? null : loadWindowBounds('board')
@@ -163,8 +188,8 @@ function createBoardWindow(): void {
       : (savedBoard ?? { width: 1280, height: 720 })),
     minWidth: 480,
     minHeight: 270,
-    title: 'Табло - КВИЗ на БИС',
-    backgroundColor: '#00148b',
+    title: 'Табло',
+    backgroundColor: loadSettings().theme.bgColor,
     autoHideMenuBar: true,
     show: false,
     webPreferences: {
@@ -174,12 +199,23 @@ function createBoardWindow(): void {
       sandbox: true
     }
   })
-  boardWin.once('ready-to-show', () => {
-    if (!boardWin) return
+  // Показываем только когда рендерер загрузил паттерн/логотип/шрифт темы (или по таймауту - на всякий случай)
+  let shown = false
+  const showBoard = (): void => {
+    if (shown || !boardWin || boardWin.isDestroyed()) return
+    shown = true
     boardWin.show()
     if (sec) boardWin.setFullScreen(true)
     broadcastDisplays()
-  })
+  }
+  const onReady = (e: Electron.IpcMainEvent): void => {
+    if (boardWin && e.sender === boardWin.webContents) {
+      ipcMain.off(IPC.boardReady, onReady)
+      showBoard()
+    }
+  }
+  ipcMain.on(IPC.boardReady, onReady)
+  boardWin.once('ready-to-show', () => setTimeout(showBoard, 5000))
   trackWindowBounds(boardWin, 'board')
   boardWin.on('enter-full-screen', broadcastDisplays)
   boardWin.on('leave-full-screen', broadcastDisplays)
@@ -198,28 +234,48 @@ function createBoardWindow(): void {
   loadPage(boardWin, 'board')
 }
 
-/** Переносит табло на второй дисплей, если он появился, и включает fullscreen */
-function moveBoardToSecondary(): void {
+/** Ставит табло на дисплей во весь экран. Если оно уже в fullscreen на другом дисплее - сначала выходит
+ *  (на macOS это анимация), и только по событию выхода переставляет окно, иначе setBounds игнорируется */
+function placeBoardOn(d: Display): void {
   if (!boardWin || boardWin.isDestroyed()) return
-  const sec = secondaryDisplay()
+  boardDisplayId = d.id
+  const go = (): void => {
+    if (!boardWin || boardWin.isDestroyed()) return
+    boardWin.setBounds(d.bounds)
+    boardWin.show()
+    boardWin.setFullScreen(true)
+    broadcastDisplays()
+  }
+  if (boardWin.isFullScreen()) {
+    boardWin.once('leave-full-screen', () => setTimeout(go, 150))
+    boardWin.setFullScreen(false)
+  } else go()
+}
+
+/** Переносит табло на выбранный дисплей (или второй, если «авто») и включает fullscreen */
+function moveBoardToTarget(): void {
+  if (!boardWin || boardWin.isDestroyed()) return
+  const sec = targetDisplay()
   if (!sec) {
     if (boardDisplayId !== null) {
-      // Второй дисплей отключили - возвращаемся в обычное окно на основном экране
+      // Дисплей отключили - возвращаемся в обычное окно на основном экране
       boardDisplayId = null
-      if (boardWin.isFullScreen()) boardWin.setFullScreen(false)
-      const p = screen.getPrimaryDisplay().workArea
-      boardWin.setBounds({ x: p.x + 40, y: p.y + 40, width: Math.min(1280, p.width - 80), height: Math.min(720, p.height - 80) })
+      const toWindow = (): void => {
+        if (!boardWin || boardWin.isDestroyed()) return
+        const p = screen.getPrimaryDisplay().workArea
+        boardWin.setBounds({ x: p.x + 40, y: p.y + 40, width: Math.min(1280, p.width - 80), height: Math.min(720, p.height - 80) })
+        broadcastDisplays()
+      }
+      if (boardWin.isFullScreen()) {
+        boardWin.once('leave-full-screen', () => setTimeout(toWindow, 150))
+        boardWin.setFullScreen(false)
+      } else toWindow()
     }
     broadcastDisplays()
     return
   }
   if (boardDisplayId === sec.id && boardWin.isFullScreen()) return
-  boardDisplayId = sec.id
-  if (boardWin.isFullScreen()) boardWin.setFullScreen(false)
-  boardWin.setBounds(sec.bounds)
-  boardWin.show()
-  boardWin.setFullScreen(true)
-  broadcastDisplays()
+  placeBoardOn(sec)
 }
 
 /** Общий розыгрыш для обоих окон: выбирает результат, шлёт табло прокрутку, окну настроек - событие */
@@ -262,7 +318,14 @@ function registerIpc(): void {
     const before = loadSettings()
     const saved = saveSettings(s)
     if (saved.alwaysOnTop !== before.alwaysOnTop) applyAlwaysOnTop(saved.alwaysOnTop)
-    const boardChanged = saved.showHistory !== before.showHistory || saved.edgeMargin !== before.edgeMargin
+    if (saved.boardDisplay !== before.boardDisplay) {
+      moveBoardToTarget()
+      broadcastDisplays()
+    }
+    const boardChanged =
+      saved.showHistory !== before.showHistory ||
+      saved.edgeMargin !== before.edgeMargin ||
+      !themesEqual(saved.theme, before.theme)
     if (boardChanged && boardWin && !boardWin.isDestroyed()) {
       boardWin.webContents.send(IPC.boardState, boardState())
     }
@@ -304,10 +367,10 @@ function registerIpc(): void {
     if (!boardWin || boardWin.isDestroyed()) createBoardWindow()
     else {
       if (on) {
-        const sec = secondaryDisplay()
-        if (sec && boardDisplayId !== sec.id) {
-          boardDisplayId = sec.id
-          boardWin.setBounds(sec.bounds)
+        const sec = targetDisplay()
+        if (sec) {
+          placeBoardOn(sec)
+          return displayStatus()
         }
         boardWin.show()
       }
@@ -315,6 +378,13 @@ function registerIpc(): void {
     }
     return displayStatus()
   })
+
+  ipcMain.handle(IPC.presetsList, (): Preset[] => listPresets())
+  ipcMain.handle(IPC.presetsSave, (_e, input: { id?: string; name: string; theme: Theme }): Preset[] => savePreset(input))
+  ipcMain.handle(IPC.presetsDelete, (_e, id: string): Preset[] => deletePreset(String(id)))
+  ipcMain.handle(IPC.presetsExport, (_e, id: string) => exportPreset(controlWin, String(id)))
+  ipcMain.handle(IPC.presetsImport, () => importPreset(controlWin))
+  ipcMain.handle(IPC.assetPick, (_e, kind: 'font' | 'image') => pickAsset(controlWin, kind === 'font' ? 'font' : 'image'))
 
   ipcMain.on(IPC.boardEscape, () => {
     if (boardWin && !boardWin.isDestroyed() && boardWin.isFullScreen()) boardWin.setFullScreen(false)
@@ -325,12 +395,18 @@ function registerIpc(): void {
 }
 
 app.whenReady().then(() => {
+  serveAssets()
+  seedBundledAssets()
+  seedPresets()
+  // Список системных шрифтов для панели оформления (Local Font Access API)
+  session.defaultSession.setPermissionCheckHandler((_wc, permission) => permission === 'local-fonts' || false)
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => cb(permission === 'local-fonts'))
   registerIpc()
   createControlWindow()
   createBoardWindow()
 
-  screen.on('display-added', () => setTimeout(moveBoardToSecondary, 300))
-  screen.on('display-removed', () => setTimeout(moveBoardToSecondary, 300))
+  screen.on('display-added', () => setTimeout(moveBoardToTarget, 300))
+  screen.on('display-removed', () => setTimeout(moveBoardToTarget, 300))
   screen.on('display-metrics-changed', broadcastDisplays)
 
   app.on('activate', () => {
