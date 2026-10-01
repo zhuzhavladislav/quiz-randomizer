@@ -1,16 +1,15 @@
 {
-  "name": "quiznabis-randomizer",
-  "productName": "QuizNaBis Randomizer",
+  "name": "quiz-randomizer",
+  "productName": "QuizRandomizer",
   "version": "1.0.0",
-  "description": "Табло-рандомайзер для музыкального квиза «КВИЗ на БИС» (Уральск)",
+  "description": "QuizRandomizer - табло-рандомайзер для квизов и игр: случайное число на втором экране, команды, пресеты оформления",
   "author": "Vladislav Zhuzha",
   "license": "MIT",
   "private": true,
   "main": "./out/main/index.js",
-  "homepage": "https://quiznabis.zhuzha.kz",
   "repository": {
     "type": "git",
-    "url": "https://github.com/zhuzhavladislav/quiznabis-randomizer.git"
+    "url": "https://github.com/zhuzhavladislav/quiz-randomizer.git"
   },
   "engines": {
     "node": ">=22.12.0"

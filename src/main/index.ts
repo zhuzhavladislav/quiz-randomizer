@@ -18,6 +18,7 @@ import { loadSettings, sanitize, saveSettings } from './settings'
 import { loadWindowBounds, trackWindowBounds } from './windowState'
 import { deletePreset, exportPreset, importPreset, listPresets, savePreset, seedPresets } from './presets'
 import { seedBundledAssets } from './seed'
+import { migrateUserData } from './migrate'
 import { pickAsset, registerAssetScheme, serveAssets } from './assets'
 import { themesEqual, type Preset, type Theme } from '@shared/theme'
 
@@ -129,7 +130,7 @@ function createControlWindow(): void {
     ...(saved ?? { width: 440, height: 720 }),
     minWidth: 380,
     minHeight: 440,
-    title: 'Рандомайзер',
+    title: 'QuizRandomizer',
     backgroundColor: '#1e1e1e',
     autoHideMenuBar: true,
     show: false,
@@ -395,6 +396,7 @@ function registerIpc(): void {
 }
 
 app.whenReady().then(() => {
+  migrateUserData()
   serveAssets()
   seedBundledAssets()
   seedPresets()

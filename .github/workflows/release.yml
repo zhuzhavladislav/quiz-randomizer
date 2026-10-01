@@ -67,7 +67,7 @@ jobs:
           files: installers/*
           fail_on_unmatched_files: true
           body: |
-            Рандомайзер «КВИЗ на БИС» ${{ github.ref_name }}
+            QuizRandomizer ${{ github.ref_name }}
 
             - `*-win-x64.exe` - установщик для Windows
             - `*-mac-arm64.dmg` - macOS на Apple Silicon (M1 и новее)

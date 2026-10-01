@@ -196,7 +196,7 @@ export function ControlApp(): React.JSX.Element {
 
   useEffect(() => {
     if (!form) return
-    document.title = form.theme.title ? `Рандомайзер - ${form.theme.title}` : 'Рандомайзер'
+    document.title = form.theme.title ? `QuizRandomizer - ${form.theme.title}` : 'QuizRandomizer'
   }, [form?.theme.title])
 
   useEffect(() => {

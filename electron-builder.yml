@@ -1,5 +1,5 @@
-appId: kz.zhuzha.quiznabis.randomizer
-productName: QuizNaBis Randomizer
+appId: kz.zhuzha.quizrandomizer
+productName: QuizRandomizer
 copyright: © Vladislav Zhuzha
 directories:
   buildResources: build
@@ -9,11 +9,11 @@ files:
   - resources/**/*
   - package.json
 asar: true
-artifactName: quiznabis-randomizer-${version}-${os}-${arch}.${ext}
+artifactName: quiz-randomizer-${version}-${os}-${arch}.${ext}
 publish:
   provider: github
   owner: zhuzhavladislav
-  repo: quiznabis-randomizer
+  repo: quiz-randomizer
   releaseType: release
 mac:
   category: public.app-category.entertainment
@@ -24,7 +24,7 @@ mac:
   darkModeSupport: true
   identity: null
 dmg:
-  title: QuizNaBis Randomizer
+  title: QuizRandomizer
   contents:
     - { x: 130, y: 220 }
     - { x: 410, y: 220, type: link, path: /Applications }
@@ -38,5 +38,5 @@ nsis:
   perMachine: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
-  shortcutName: Рандомайзер КВИЗ на БИС
+  shortcutName: QuizRandomizer
   language: 1049
