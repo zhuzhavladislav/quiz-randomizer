@@ -25,7 +25,7 @@
     "dist:dir": "npm run build && electron-builder --dir"
   },
   "dependencies": {
-    "adm-zip": "^0.5.18",
+    "adm-zip": "^0.6.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
