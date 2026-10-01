@@ -46,7 +46,7 @@ export interface Preset {
   theme: Theme
 }
 
-/** Нейтральная тема по умолчанию; «КВИЗ на БИС» - обычный пресет, который main создаёт при первом запуске */
+/** Нейтральная тема по умолчанию; готовые пресеты импортируются из presets/*.rpreset при первом запуске */
 export const DEFAULT_THEME: Theme = {
   title: 'Рандомайзер',
   fontKind: 'builtin',
@@ -71,9 +71,8 @@ export const DEFAULT_THEME: Theme = {
   logoScale: 1
 }
 
-/** id пресета «КВИЗ на БИС», создаваемого при первом запуске */
-export const QUIZNABIS_PRESET_ID = 'quiznabis'
-export const DEFAULT_PRESET_ID = QUIZNABIS_PRESET_ID
+/** Пустой id - тема не привязана к пресету («свой вариант») */
+export const DEFAULT_PRESET_ID = ''
 
 /** Префикс URL файлов пользователя, которые раздаёт main-процесс */
 export const ASSET_URL_PREFIX = 'asset://local/'

@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 import { ASSET_URL_PREFIX } from '@shared/theme'
 import type { PickedAsset } from '@shared/types'
+import { t, type Lang } from '@shared/i18n'
 
 /**
  * Файлы пользователя (шрифты, паттерны, логотипы) копируются в userData/assets и раздаются табло
@@ -92,12 +93,12 @@ function hashFile(path: string): Promise<string> {
 }
 
 /** Показывает диалог выбора файла и копирует его в папку данных; null - отмена */
-export async function pickAsset(win: BrowserWindow | null, kind: 'font' | 'image'): Promise<PickedAsset | null> {
+export async function pickAsset(win: BrowserWindow | null, kind: 'font' | 'image', lang: Lang = 'en'): Promise<PickedAsset | null> {
   const filters =
     kind === 'font'
-      ? [{ name: 'Шрифты', extensions: ['ttf', 'otf', 'woff', 'woff2'] }]
-      : [{ name: 'Изображения', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'] }]
-  const opts = { title: kind === 'font' ? 'Выберите файл шрифта' : 'Выберите изображение', properties: ['openFile' as const], filters }
+      ? [{ name: t(lang, 'dlg.fonts'), extensions: ['ttf', 'otf', 'woff', 'woff2'] }]
+      : [{ name: t(lang, 'dlg.images'), extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'] }]
+  const opts = { title: t(lang, kind === 'font' ? 'dlg.font' : 'dlg.image'), properties: ['openFile' as const], filters }
   const result = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
   const src = result.filePaths[0]
   if (result.canceled || !src) return null

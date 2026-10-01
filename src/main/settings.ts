@@ -3,18 +3,18 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { ANIMATIONS, DEFAULT_SETTINGS, EDGE_MARGINS, type Animation, type EdgeMargin, type Settings } from '@shared/types'
 import { DEFAULT_PRESET_ID, sanitizeTheme, type Theme } from '@shared/theme'
-import { QUIZNABIS_ASSETS } from './seed'
+import { LANGUAGES, type LanguageSetting } from '@shared/i18n'
 
 function filePath(): string {
   return join(app.getPath('userData'), 'settings.json')
 }
 
-/** Старые настройки ссылались на встроенные логотип/паттерн - теперь это файлы в userData/assets */
+/** Настройки версии 1.0 ссылались на встроенные логотип/паттерн - их больше нет, картинка снимается */
 function migrateTheme(t: Partial<Theme> | undefined): Partial<Theme> | undefined {
   if (!t) return t
   const m: Record<string, unknown> = { ...t }
-  if (m.patternKind === 'builtin') Object.assign(m, { patternKind: 'file', patternUrl: QUIZNABIS_ASSETS.pattern.url, patternName: QUIZNABIS_ASSETS.pattern.name })
-  if (m.logoKind === 'builtin') Object.assign(m, { logoKind: 'file', logoUrl: QUIZNABIS_ASSETS.logo.url, logoName: QUIZNABIS_ASSETS.logo.name })
+  if (m.patternKind === 'builtin') m.patternKind = 'none'
+  if (m.logoKind === 'builtin') m.logoKind = 'none'
   return m as Partial<Theme>
 }
 
@@ -41,9 +41,10 @@ export function sanitize(input: Partial<Settings> | null | undefined): Settings 
     : DEFAULT_SETTINGS.edgeMargin
   const alwaysOnTop = typeof s.alwaysOnTop === 'boolean' ? s.alwaysOnTop : DEFAULT_SETTINGS.alwaysOnTop
   const theme = sanitizeTheme(s.theme)
-  const presetId = String(s.presetId ?? '').slice(0, 80) || DEFAULT_PRESET_ID
+  const presetId = String(s.presetId ?? DEFAULT_PRESET_ID).slice(0, 80)
   const boardDisplay: 'auto' | number = Number.isFinite(Number(s.boardDisplay)) && s.boardDisplay !== 'auto' ? Number(s.boardDisplay) : 'auto'
-  return { from, to, durationSec, teams, animation, allowRepeat, showHistory, edgeMargin, alwaysOnTop, theme, presetId, boardDisplay }
+  const language: LanguageSetting = (LANGUAGES as readonly string[]).includes(String(s.language)) ? (s.language as LanguageSetting) : 'auto'
+  return { from, to, durationSec, teams, animation, allowRepeat, showHistory, edgeMargin, alwaysOnTop, theme, presetId, boardDisplay, language }
 }
 
 export function loadSettings(): Settings {

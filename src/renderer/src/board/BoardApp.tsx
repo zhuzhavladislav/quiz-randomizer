@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { REVEAL_DELAY_MS, teamForNumber, type BoardState, type ConcreteAnimation, type SpinPayload } from '@shared/types'
 import { DEFAULT_THEME, themeFontFamily, type Theme } from '@shared/theme'
+import { t } from '@shared/i18n'
 import { Confetti } from './Confetti'
 
 /** Регистрирует файл шрифта пользователя как семейство ThemeFont (все веса - из одного файла) */
@@ -72,7 +73,7 @@ export function BoardApp(): React.JSX.Element {
   const [burst, setBurst] = useState(0)
   const [teamsMode, setTeamsMode] = useState(false)
   const [animation, setAnimation] = useState<ConcreteAnimation>('drum')
-  const [hist, setHist] = useState<BoardState>({ history: [], showHistory: true, edgeMargin: 'medium', theme: DEFAULT_THEME })
+  const [hist, setHist] = useState<BoardState>({ history: [], showHistory: true, edgeMargin: 'medium', theme: DEFAULT_THEME, lang: 'en' })
   const [teams, setTeams] = useState<string[]>([])
   const rafRef = useRef(0)
   const revealRef = useRef<number | undefined>(undefined)
@@ -95,9 +96,10 @@ export function BoardApp(): React.JSX.Element {
     void loadThemeFont(theme.fontKind === 'file' ? theme.fontId : '')
   }, [theme.fontKind, theme.fontId])
   useEffect(() => {
-    document.title = theme.title ? `Табло - ${theme.title}` : 'Табло'
+    const board = t(hist.lang, 'board.title')
+    document.title = theme.title ? `${board} - ${theme.title}` : board
     document.body.style.backgroundColor = theme.bgColor
-  }, [theme.title, theme.bgColor])
+  }, [theme.title, theme.bgColor, hist.lang])
 
   useEffect(() => {
     const unsubscribe = window.api.onSpin((p: SpinPayload) => {

@@ -17,8 +17,8 @@ import {
 import { loadSettings, sanitize, saveSettings } from './settings'
 import { loadWindowBounds, trackWindowBounds } from './windowState'
 import { deletePreset, exportPreset, importPreset, listPresets, savePreset, seedPresets } from './presets'
-import { seedBundledAssets } from './seed'
 import { migrateUserData } from './migrate'
+import { resolveLang, t, type Lang } from '@shared/i18n'
 import { pickAsset, registerAssetScheme, serveAssets } from './assets'
 import { themesEqual, type Preset, type Theme } from '@shared/theme'
 
@@ -49,6 +49,11 @@ function loadPage(win: BrowserWindow, page: 'control' | 'board'): void {
   }
 }
 
+/** Текущий язык интерфейса по настройке и локали системы */
+export function currentLang(): Lang {
+  return resolveLang(loadSettings().language, app.getLocale())
+}
+
 function secondaryDisplay(): Display | null {
   const primary = screen.getPrimaryDisplay()
   return screen.getAllDisplays().find((d) => d.id !== primary.id) ?? null
@@ -65,9 +70,10 @@ function targetDisplay(): Display | null {
 }
 
 function displayInfo(d: Display): DisplayInfo {
+  const lang = currentLang()
   const primary = d.id === screen.getPrimaryDisplay().id
-  const name = d.label?.trim() || 'Дисплей'
-  return { id: d.id, label: `${name} · ${d.size.width}×${d.size.height}${primary ? ' (основной)' : ''}`, primary }
+  const name = d.label?.trim() || t(lang, 'display.unnamed')
+  return { id: d.id, label: `${name} · ${d.size.width}×${d.size.height}${primary ? ` (${t(lang, 'display.primary')})` : ''}`, primary }
 }
 
 function displayStatus(): DisplayStatus {
@@ -84,7 +90,7 @@ function displayStatus(): DisplayStatus {
 
 function boardState(): BoardState {
   const s = loadSettings()
-  return { history, showHistory: s.showHistory, edgeMargin: s.edgeMargin, theme: s.theme }
+  return { history, showHistory: s.showHistory, edgeMargin: s.edgeMargin, theme: s.theme, lang: currentLang() }
 }
 
 /** Рассылает историю окну настроек и (если toBoard) табло */
@@ -189,7 +195,7 @@ function createBoardWindow(): void {
       : (savedBoard ?? { width: 1280, height: 720 })),
     minWidth: 480,
     minHeight: 270,
-    title: 'Табло',
+    title: 'Board',
     backgroundColor: loadSettings().theme.bgColor,
     autoHideMenuBar: true,
     show: false,
@@ -323,9 +329,11 @@ function registerIpc(): void {
       moveBoardToTarget()
       broadcastDisplays()
     }
+    if (saved.language !== before.language) broadcastDisplays()
     const boardChanged =
       saved.showHistory !== before.showHistory ||
       saved.edgeMargin !== before.edgeMargin ||
+      saved.language !== before.language ||
       !themesEqual(saved.theme, before.theme)
     if (boardChanged && boardWin && !boardWin.isDestroyed()) {
       boardWin.webContents.send(IPC.boardState, boardState())
@@ -383,9 +391,9 @@ function registerIpc(): void {
   ipcMain.handle(IPC.presetsList, (): Preset[] => listPresets())
   ipcMain.handle(IPC.presetsSave, (_e, input: { id?: string; name: string; theme: Theme }): Preset[] => savePreset(input))
   ipcMain.handle(IPC.presetsDelete, (_e, id: string): Preset[] => deletePreset(String(id)))
-  ipcMain.handle(IPC.presetsExport, (_e, id: string) => exportPreset(controlWin, String(id)))
-  ipcMain.handle(IPC.presetsImport, () => importPreset(controlWin))
-  ipcMain.handle(IPC.assetPick, (_e, kind: 'font' | 'image') => pickAsset(controlWin, kind === 'font' ? 'font' : 'image'))
+  ipcMain.handle(IPC.presetsExport, (_e, id: string) => exportPreset(controlWin, String(id), currentLang()))
+  ipcMain.handle(IPC.presetsImport, () => importPreset(controlWin, currentLang()))
+  ipcMain.handle(IPC.assetPick, (_e, kind: 'font' | 'image') => pickAsset(controlWin, kind === 'font' ? 'font' : 'image', currentLang()))
 
   ipcMain.on(IPC.boardEscape, () => {
     if (boardWin && !boardWin.isDestroyed() && boardWin.isFullScreen()) boardWin.setFullScreen(false)
@@ -398,7 +406,6 @@ function registerIpc(): void {
 app.whenReady().then(() => {
   migrateUserData()
   serveAssets()
-  seedBundledAssets()
   seedPresets()
   // Список системных шрифтов для панели оформления (Local Font Access API)
   session.defaultSession.setPermissionCheckHandler((_wc, permission) => permission === 'local-fonts' || false)

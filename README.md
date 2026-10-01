@@ -1,89 +1,89 @@
 # QuizRandomizer
 
-QuizRandomizer - десктопное табло для розыгрыша случайного числа на квизах и играх. Оформление настраивается
-(шрифт, цвета, паттерн, логотип) и сохраняется в пресеты; «КВИЗ на БИС» - встроенный пресет.
-Окно настроек - у ведущего, табло - во весь второй экран. Полностью офлайн.
+[Русская версия](README.ru.md)
 
-Стек: Electron + React + TypeScript + Vite (electron-vite), инсталляторы через electron-builder.
+A desktop scoreboard for drawing a random number at quizzes, pub games and raffles.
+The host keeps a compact control window on their screen; the board fills the second
+display with a huge spinning number. Everything works offline.
 
-## Как это работает
+![Board](docs/board.png)
 
-1. **Окно настроек** (основной экран): «Число от», «Число до», «Длительность прокрутки, сек», список команд
-   (по одной на строку) и кнопка **СТАРТ**. Настройки запоминаются между запусками
-   (`settings.json` в папке userData). Показывается статус второго дисплея.
-2. **Табло** открывается на втором дисплее во весь экран. Если второго дисплея нет - обычное окно,
-   которое можно перетащить. При подключении дисплея табло само переезжает на него. Дисплей можно
-   выбрать вручную в строке статуса (список подключённых мониторов); «Авто» - любой не основной.
-3. **Розыгрыш**: результат выбирается сразу (`crypto.randomInt`), потом табло N секунд крутит числа как барабан:
-   частота смены высокая в начале и падает к концу. Последнее число - заранее выбранный результат.
-   Финал: цифра «впечатывается» пружиной, конфетти.
-4. Если вставлен список команд, диапазон становится `1 … количество команд`, а под выпавшим числом на табло
-   появляется название команды с этой строки. Список пуст - только цифры.
-5. **Анимация** прокрутки: барабан, переворот, зум, сдвиг или случайная на каждый розыгрыш.
-6. **Повторы чисел**: если выключены, уже выпавшие числа исключаются из следующих розыгрышей и не появляются
-   на табло при прокрутке. Список выпавших виден в окне настроек, кнопка «Сбросить» начинает заново
-   (история живёт до перезапуска приложения), табло при этом возвращается на стартовый экран.
-   Когда все числа выпали, СТАРТ блокируется. В списке команд номера уже выпавших подсвечены жёлтым.
-7. **Отступ по краям табло** (меньше / средний / больше) - для экранов, которые обрезают края картинки.
-8. **Оформление** (шестерёнка в строке табло): пресет, название, шрифт (Montserrat встроенный,
-   любой системный с поиском и предпросмотром, или файл .ttf/.otf/.woff2), цвета фона/цифр/текста,
-   паттерн на фоне (встроенный или своя картинка, прозрачность и размер), логотип (встроенный или свой,
-   размер в углу). Всё применяется на табло сразу. Пресеты хранятся в `presets.json` в userData;
-   «КВИЗ на БИС» добавляется при первом запуске как обычный пресет (его можно править и удалять).
-   **Экспорт/импорт** пресета файлом `.rpreset` - это zip с `preset.json` и папкой `assets/` (шрифт,
-   паттерн, логотип), так что пресет переносится на другой компьютер целиком; копия «КВИЗ на БИС»
-   лежит в `presets/quiznabis.rpreset`. Файлы пользователя копируются в `userData/assets` и раздаются
-   табло по внутренней схеме `asset://`. Системный шрифт должен быть установлен на компьютере игры.
-9. Окно настроек можно закрепить **поверх всех окон** (галочка внизу). Положение и размер окон запоминаются
-   между запусками (`window-state.json` в userData); табло - только в оконном режиме без второго дисплея.
-   Подсказки по горячим клавишам - за кнопкой «?» внизу.
+## Features
 
-Горячие клавиши: `Пробел`/`Enter` в окне настроек (вне полей) или на табло - СТАРТ, `Ctrl/Cmd+Enter` - СТАРТ
-из любого поля. На табло: `Esc` - выйти из полного экрана, `F` или двойной клик - переключить полный экран.
-Закрытие табло только прячет его - вернуть кнопкой «Показать» в строке статуса.
+- **Board on the second display** - opens full screen on a secondary monitor automatically
+  (or on a monitor you pick), falls back to a draggable window when there is only one screen.
+- **Drum animation** - the result is chosen up front, then the board spins through the
+  numbers like a drum, slowing down towards the end. Four animation styles or random.
+- **Teams** - paste a list, one per line: the range becomes 1…N and the team name
+  appears under the drawn number.
+- **No repeats** - drawn numbers are excluded until you reset; history is shown both in
+  the control window and in the corner of the board.
+- **Appearance presets** - font (any system font with search and preview, or a font file),
+  colors, digit shadow, confetti colors, background pattern and logo. Presets are saved
+  locally and can be exported to / imported from a single `.rpreset` file that carries
+  its fonts and images along.
+- **Two languages** - Russian and English UI, auto-detected from the system (switch in the
+  Application section).
+- Keyboard: `Space` / `Enter` starts a draw from either window, `Esc` leaves full screen,
+  `F` or double-click toggles it. The control window can stay always on top.
 
-## Требования
+## Download
 
-Node.js **22.12+** (свежие Electron и Vite не ставятся на Node 18). В проекте лежит `.nvmrc`:
+Installers for Windows (`.exe`) and macOS (`.dmg`, Apple Silicon and Intel) are attached
+to every [GitHub release](https://github.com/zhuzhavladislav/quiz-randomizer/releases).
+
+The builds are not code-signed. On macOS right-click the app and choose **Open** the first
+time; on Windows click **More info → Run anyway** in SmartScreen.
+
+## How it works
+
+1. Set the range (or paste teams), the spin duration and press **Start**.
+2. The main process picks the result with `crypto.randomInt`, sends it to the board and
+   the board animates towards it. The winner is announced a second after the drum stops:
+   the number pops, confetti falls, the result is added to history.
+3. Presets live in `presets.json` inside the app data folder; user files (fonts, images)
+   are copied to `userData/assets` and served to the board through a private `asset://`
+   scheme, so the renderer stays sandboxed. The presets shipped in `presets/` are imported
+   automatically on first launch.
+
+## Development
+
+Requires Node.js 22.12+ (see `.nvmrc`).
 
 ```bash
-nvm use        # или: nvm install 22
 npm install
+npm run dev        # both windows with hot reload
+npm run typecheck
+npm run build      # compiles to out/
+npm run dist       # installer for the current OS in release/
 ```
 
-## Команды
+Stack: Electron + React + TypeScript + Vite (electron-vite), packaged with electron-builder.
+`contextIsolation` and `sandbox` are on, the renderer talks to the main process only through
+the typed bridge in `src/preload`.
+
+```
+src/main/       main process: windows, displays, IPC, settings, presets, asset scheme
+src/preload/    typed window.api bridge
+src/renderer/   control.html (host window) and board.html (scoreboard), React
+src/shared/     types, theme model, i18n dictionaries
+presets/        bundled .rpreset files, imported on first launch
+build/          app icon
+```
+
+### Releasing
+
+Pushing a `v*` tag builds installers on GitHub Actions and attaches them to a release:
 
 ```bash
-npm run dev        # запуск в режиме разработки (открывает оба окна, hot reload)
-npm run typecheck  # проверка типов main/preload/renderer
-npm run build      # сборка в out/
-npm run dist       # инсталлятор для текущей ОС в release/
-npm run dist:mac   # .dmg (arm64 + x64)
-npm run dist:win   # NSIS .exe (x64)
+npm version minor -m "v%s" && git push --follow-tags
 ```
 
-## Релизы через GitHub Actions
+### Contributing
 
-Workflow `.github/workflows/release.yml` запускается на тег вида `v*`: два задания собирают `.exe` (windows-latest)
-и `.dmg` (macos-latest), третье создаёт GitHub Release с тем же тегом и прикладывает все инсталляторы.
+Issues and pull requests are welcome. Keep the control window minimal and the board
+readable from across a bar; UI strings go to `src/shared/i18n.ts` in both languages.
 
-```bash
-npm version 1.0.1          # обновит package.json и создаст тег v1.0.1
-git push --follow-tags
-```
+## License
 
-При обновлении с версии 1.0 (приложение «QuizNaBis Randomizer») настройки, пресеты и файлы переносятся
-в новую папку данных автоматически при первом запуске.
-
-Сборки не подписаны. На macOS первый запуск: правый клик по приложению → «Открыть».
-На Windows SmartScreen: «Подробнее» → «Выполнить в любом случае».
-
-## Структура
-
-```
-src/main/       main-процесс: окна, дисплеи, IPC, хранение настроек
-src/preload/    типизированный мост window.api (contextIsolation: true, sandbox: true)
-src/renderer/   control.html (настройки) и board.html (табло), React
-src/shared/     общие типы и имена IPC-каналов
-build/          иконка приложения (icon.png → .icns/.ico генерирует electron-builder)
-```
+[MIT](LICENSE). Bundled fonts and example presets: see [THIRD_PARTY.md](THIRD_PARTY.md).

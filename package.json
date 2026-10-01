@@ -1,8 +1,8 @@
 {
   "name": "quiz-randomizer",
   "productName": "QuizRandomizer",
-  "version": "1.0.0",
-  "description": "QuizRandomizer - табло-рандомайзер для квизов и игр: случайное число на втором экране, команды, пресеты оформления",
+  "version": "1.1.0",
+  "description": "Desktop scoreboard that draws a random number on a second display: teams, no-repeat history, appearance presets",
   "author": "Vladislav Zhuzha",
   "license": "MIT",
   "private": true,
@@ -40,5 +40,14 @@
     "electron-vite": "^5.0.0",
     "typescript": "^5.9.0",
     "vite": "^7.3.6"
-  }
+  },
+  "keywords": [
+    "electron",
+    "quiz",
+    "randomizer",
+    "raffle",
+    "random-number",
+    "scoreboard",
+    "second-display"
+  ]
 }

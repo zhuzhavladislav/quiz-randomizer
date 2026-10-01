@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  ANIMATION_LABELS,
   ANIMATIONS,
   availableNumbers,
-  EDGE_MARGIN_LABELS,
   EDGE_MARGINS,
   parseTeams,
   REVEAL_DELAY_MS,
@@ -17,6 +15,8 @@ import {
 import { type Preset, type Theme } from '@shared/theme'
 import { ThemePanel } from './ThemePanel'
 import { Section } from './Section'
+import { LANGUAGES, resolveLang, t as translate, type LanguageSetting } from '@shared/i18n'
+import { LangContext } from '../shared/lang'
 
 interface Form {
   from: string
@@ -31,6 +31,7 @@ interface Form {
   theme: Theme
   presetId: string
   boardDisplay: 'auto' | number
+  language: LanguageSetting
 }
 
 interface LastResult {
@@ -69,7 +70,8 @@ export function ControlApp(): React.JSX.Element {
         alwaysOnTop: s.alwaysOnTop,
         theme: s.theme,
         presetId: s.presetId,
-        boardDisplay: s.boardDisplay
+        boardDisplay: s.boardDisplay,
+        language: s.language
       })
     )
     void window.api.getDisplays().then(setDisplays)
@@ -103,11 +105,14 @@ export function ControlApp(): React.JSX.Element {
   const to = teamsMode ? teams.length : form ? toInt(form.to) : null
   const duration = form ? toInt(form.durationSec) : null
 
+  const lang = resolveLang(form?.language ?? 'auto', navigator.language)
+  const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>): string => translate(lang, key, vars)
+
   let error: string | null = null
   if (form) {
-    if (from === null || to === null) error = 'Границы диапазона должны быть целыми числами'
-    else if (from > to) error = '«От» не может быть больше «До»'
-    else if (duration === null || duration < 1 || duration > 60) error = 'Длительность - целое число от 1 до 60 сек'
+    if (from === null || to === null) error = t('draw.err.int')
+    else if (from > to) error = t('draw.err.order')
+    else if (duration === null || duration < 1 || duration > 60) error = t('draw.err.duration')
   }
   const pool = form && !error ? availableNumbers(from!, to!, form.allowRepeat, history) : []
   const exhausted = !!form && !error && pool.length === 0
@@ -133,7 +138,8 @@ export function ControlApp(): React.JSX.Element {
         alwaysOnTop: form.alwaysOnTop,
         theme: form.theme,
         presetId: form.presetId,
-        boardDisplay: form.boardDisplay
+        boardDisplay: form.boardDisplay,
+        language: form.language
       })
     }, 250)
     return () => window.clearTimeout(saveTimer.current)
@@ -151,6 +157,7 @@ export function ControlApp(): React.JSX.Element {
     form?.theme,
     form?.presetId,
     form?.boardDisplay,
+    form?.language,
     error
   ])
 
@@ -168,7 +175,8 @@ export function ControlApp(): React.JSX.Element {
       alwaysOnTop: form.alwaysOnTop,
       theme: form.theme,
       presetId: form.presetId,
-      boardDisplay: form.boardDisplay
+      boardDisplay: form.boardDisplay,
+      language: form.language
     })
   }, [form, error, spinning, exhausted, from, to, duration, teams])
 
@@ -216,39 +224,40 @@ export function ControlApp(): React.JSX.Element {
   const lineCount = Math.max(1, form.teamsText.split('\n').length)
 
   return (
+    <LangContext.Provider value={lang}>
     <div className="control">
       <div className="scroll">
         {/* ---- табло ---- */}
-        <Section id="board" title="Табло">
+        <Section id="board" title={t('board.section')}>
           <div className="form">
             <label className="form__label" htmlFor="display">
-              Дисплей
+              {t('board.display')}
             </label>
             <select
               id="display"
               value={form.boardDisplay === 'auto' ? 'auto' : String(form.boardDisplay)}
               onChange={(e) => update({ boardDisplay: e.target.value === 'auto' ? 'auto' : Number(e.target.value) })}
             >
-              <option value="auto">Авто (второй дисплей)</option>
+              <option value="auto">{t('board.display.auto')}</option>
               {(displays?.displays ?? []).map((d) => (
                 <option key={d.id} value={String(d.id)}>
                   {d.label}
                 </option>
               ))}
               {form.boardDisplay !== 'auto' && !displays?.displays.some((d) => d.id === form.boardDisplay) && (
-                <option value={String(form.boardDisplay)}>Выбранный дисплей не подключён</option>
+                <option value={String(form.boardDisplay)}>{t('board.display.missing')}</option>
               )}
             </select>
-            <span className="form__label">Состояние</span>
+            <span className="form__label">{t('board.state')}</span>
             <span className={`status ${displays?.boardVisible ? 'status--on' : ''}`}>
               <span className="status__dot" />
               {!displays?.boardVisible
-                ? 'Скрыто'
+                ? t('board.state.hidden')
                 : displays.boardFullscreen
-                  ? `Весь экран${targetLabel ? ` · ${targetLabel}` : ''}`
+                  ? `${t('board.state.fullscreen')}${targetLabel ? ` · ${targetLabel}` : ''}`
                   : dispOk
-                    ? 'В окне'
-                    : 'В окне · второй дисплей не найден'}
+                    ? t('board.state.windowed')
+                    : t('board.state.noSecondary')}
             </span>
           </div>
           <div className="btn-grid btn-grid--3">
@@ -256,26 +265,26 @@ export function ControlApp(): React.JSX.Element {
               className="btn"
               onClick={() => void (displays?.boardVisible ? window.api.hideBoard() : window.api.showBoard())}
             >
-              {displays?.boardVisible ? 'Скрыть' : 'Показать'}
+              {t(displays?.boardVisible ? 'board.hide' : 'board.show')}
             </button>
             <button
               className="btn"
               disabled={!displays?.boardVisible}
               onClick={() => void window.api.setBoardFullscreen(!displays?.boardFullscreen)}
             >
-              {displays?.boardFullscreen ? 'В окно' : 'Весь экран'}
+              {t(displays?.boardFullscreen ? 'board.windowed' : 'board.fullscreen')}
             </button>
             <button className="btn" onClick={() => setThemeOpen(true)}>
-              Оформление…
+              {t('board.appearance')}
             </button>
           </div>
         </Section>
 
         {/* ---- розыгрыш ---- */}
-        <Section id="draw" title="Розыгрыш">
+        <Section id="draw" title={t('draw.section')}>
           <div className="row row--3">
             <div className="field">
-              <label htmlFor="from">От</label>
+              <label htmlFor="from">{t('draw.from')}</label>
               <input
                 id="from"
                 type="number"
@@ -286,7 +295,7 @@ export function ControlApp(): React.JSX.Element {
               />
             </div>
             <div className="field">
-              <label htmlFor="to">До</label>
+              <label htmlFor="to">{t('draw.to')}</label>
               <input
                 id="to"
                 type="number"
@@ -297,7 +306,7 @@ export function ControlApp(): React.JSX.Element {
               />
             </div>
             <div className="field">
-              <label htmlFor="dur">Прокрутка, сек</label>
+              <label htmlFor="dur">{t('draw.duration')}</label>
               <input
                 id="dur"
                 type="number"
@@ -311,21 +320,21 @@ export function ControlApp(): React.JSX.Element {
           </div>
           <div className="row row--2">
             <div className="field">
-              <label htmlFor="anim">Анимация</label>
+              <label htmlFor="anim">{t('draw.animation')}</label>
               <select id="anim" value={form.animation} onChange={(e) => update({ animation: e.target.value as Animation })}>
                 {ANIMATIONS.map((a) => (
                   <option key={a} value={a}>
-                    {ANIMATION_LABELS[a]}
+                    {t(`anim.${a}`)}
                   </option>
                 ))}
               </select>
             </div>
             <div className="field">
-              <label htmlFor="edge">Отступ по краям табло</label>
+              <label htmlFor="edge">{t('draw.edge')}</label>
               <select id="edge" value={form.edgeMargin} onChange={(e) => update({ edgeMargin: e.target.value as EdgeMargin })}>
                 {EDGE_MARGINS.map((m) => (
                   <option key={m} value={m}>
-                    {EDGE_MARGIN_LABELS[m]}
+                    {t(`edge.${m}`)}
                   </option>
                 ))}
               </select>
@@ -339,8 +348,8 @@ export function ControlApp(): React.JSX.Element {
                 onChange={(e) => update({ allowRepeat: e.target.checked })}
               />
               <span>
-                Повторы чисел
-                <small>{form.allowRepeat ? 'участвуют все' : 'выпавшие исключаются'}</small>
+                {t('draw.repeat')}
+                <small>{t(form.allowRepeat ? 'draw.repeat.on' : 'draw.repeat.off')}</small>
               </span>
             </label>
             <label className="check">
@@ -350,8 +359,8 @@ export function ControlApp(): React.JSX.Element {
                 onChange={(e) => update({ showHistory: e.target.checked })}
               />
               <span>
-                История на табло
-                <small>список в левом углу</small>
+                {t('draw.history')}
+                <small>{t('draw.history.hint')}</small>
               </span>
             </label>
           </div>
@@ -359,7 +368,7 @@ export function ControlApp(): React.JSX.Element {
         </Section>
 
         {/* ---- команды ---- */}
-        <Section id="teams" title="Команды" meta={teamsMode ? `${teams.length} · диапазон 1-${teams.length}` : 'пусто - только цифры'}>
+        <Section id="teams" title={t('teams.section')} meta={teamsMode ? t('teams.meta', { n: teams.length }) : t('teams.empty')}>
           <div className="teams">
             <div className="teams__gutter" aria-hidden="true">
               <div style={{ transform: `translateY(-${gutterScroll}px)` }}>
@@ -373,7 +382,7 @@ export function ControlApp(): React.JSX.Element {
             <textarea
               id="teams"
               wrap="off"
-              placeholder={'Second Hand\nБешеные Псы\nУгадай мелодию'}
+              placeholder={t('teams.placeholder')}
               value={form.teamsText}
               spellCheck={false}
               onChange={(e) => update({ teamsText: e.target.value })}
@@ -383,14 +392,14 @@ export function ControlApp(): React.JSX.Element {
         </Section>
 
         {/* ---- история ---- */}
-        <Section id="history" title="Выпали" meta={history.length}>
+        <Section id="history" title={t('history.section')} meta={history.length}>
           {history.length > 0 && (
             <button className="btn btn--small" onClick={() => void window.api.resetHistory()}>
-              Сбросить
+              {t('history.reset')}
             </button>
           )}
           <div className="chips">
-            {history.length === 0 && <span className="chips__empty">Пока ничего не выпало</span>}
+            {history.length === 0 && <span className="chips__empty">{t('history.empty')}</span>}
             {history.map((n, i) => {
               const team = teamForNumber(teams, n)
               return (
@@ -401,6 +410,26 @@ export function ControlApp(): React.JSX.Element {
               )
             })}
           </div>
+        </Section>
+
+        {/* ---- приложение ---- */}
+        <Section id="app" title={t('app.section')} defaultOpen={false}>
+          <div className="form">
+            <label className="form__label" htmlFor="lang">
+              {t('language')}
+            </label>
+            <select id="lang" value={form.language} onChange={(e) => update({ language: e.target.value as LanguageSetting })}>
+              {LANGUAGES.map((l) => (
+                <option key={l} value={l}>
+                  {l === 'auto' ? t('language.auto') : l === 'ru' ? 'Русский' : 'English'}
+                </option>
+              ))}
+            </select>
+          </div>
+          <label className="check">
+            <input type="checkbox" checked={form.alwaysOnTop} onChange={(e) => update({ alwaysOnTop: e.target.checked })} />
+            <span>{t('alwaysOnTop')}</span>
+          </label>
         </Section>
       </div>
 
@@ -417,7 +446,7 @@ export function ControlApp(): React.JSX.Element {
       {/* ---- закреплённый низ: СТАРТ и последний результат ---- */}
       <div className="footer">
         <button className="start" disabled={!!error || spinning || exhausted} onClick={start}>
-          {spinning ? 'Крутим…' : exhausted ? 'Все числа выпали' : 'Старт'}
+          {t(spinning ? 'start.spinning' : exhausted ? 'start.exhausted' : 'start')}
         </button>
         <div className="result">
           {last ? (
@@ -427,37 +456,32 @@ export function ControlApp(): React.JSX.Element {
             </>
           ) : (
             <span className="result__hint">
-              {spinning ? 'Табло крутит…' : exhausted ? 'Сбросьте историю или включите повторы' : 'Пробел - старт'}
+              {t(spinning ? 'hint.spinning' : exhausted ? 'hint.exhausted' : 'hint.space')}
             </span>
           )}
         </div>
-        <div className="footer__row">
-          <label className="check check--inline" title="Держать окно настроек поверх всех окон">
-            <input type="checkbox" checked={form.alwaysOnTop} onChange={(e) => update({ alwaysOnTop: e.target.checked })} />
-            <span>Поверх всех окон</span>
-          </label>
-          <div className="help">
-            <button className="help__btn" type="button" aria-label="Горячие клавиши">
+        <div className="help">
+            <button className="help__btn" type="button" aria-label={t('help.title')}>
               ?
             </button>
             <div className="help__pop">
-              <div className="help__title">Горячие клавиши</div>
+              <div className="help__title">{t('help.title')}</div>
               <div className="help__line">
-                <kbd>Пробел</kbd> / <kbd>Enter</kbd> здесь или на табло - старт
+                <kbd>Space</kbd> / <kbd>Enter</kbd> {t('help.start')}
               </div>
               <div className="help__line">
-                <kbd>Ctrl</kbd>+<kbd>Enter</kbd> - старт из любого поля
+                <kbd>Ctrl</kbd>+<kbd>Enter</kbd> - {t('help.startAny')}
               </div>
               <div className="help__line">
-                <kbd>Esc</kbd> на табло - выйти из полного экрана
+                <kbd>Esc</kbd> {t('help.esc')}
               </div>
               <div className="help__line">
-                <kbd>F</kbd> или двойной клик на табло - переключить полный экран
+                <kbd>F</kbd> {t('help.f')}
               </div>
             </div>
           </div>
-        </div>
       </div>
     </div>
+    </LangContext.Provider>
   )
 }

@@ -473,10 +473,8 @@ select option {
 .footer {
   flex: none;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-areas:
-    'start result'
-    'row row';
+  grid-template-columns: 1fr 1fr auto;
+  grid-template-areas: 'start result help';
   gap: 6px 10px;
   align-items: center;
   padding: 8px 10px;
@@ -534,20 +532,10 @@ select option {
   color: var(--muted);
 }
 
-.footer__row {
-  grid-area: row;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.check--inline {
-  color: var(--muted);
-}
-
 .help {
+  grid-area: help;
   position: relative;
+  align-self: end;
 }
 
 .help__btn {

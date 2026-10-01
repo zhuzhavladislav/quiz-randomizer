@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { CONFETTI_MAX, themesEqual, type Preset, type Theme } from '@shared/theme'
 import { FontPicker, loadSystemFonts } from './FontPicker'
 import { Section } from './Section'
+import { useT } from '../shared/lang'
 
 interface Props {
   theme: Theme
@@ -61,6 +62,7 @@ function IconBtn({ title, icon, disabled, onClick }: { title: string; icon: stri
 
 /** Панель «Оформление»: пресеты, шрифт, цвета, паттерн, логотип. Все изменения применяются на табло сразу */
 export function ThemePanel({ theme, presetId, onChange, onApplyPreset, onClose }: Props): React.JSX.Element {
+  const t = useT()
   const [presets, setPresets] = useState<Preset[]>([])
   const [naming, setNaming] = useState(false)
   const [name, setName] = useState('')
@@ -107,7 +109,7 @@ export function ThemePanel({ theme, presetId, onChange, onApplyPreset, onClose }
     if (!preset) return
     if (dirty) await updateCurrent()
     const ok = await window.api.exportPreset(preset.id)
-    setNotice(ok ? `Пресет «${preset.name}» сохранён в файл` : null)
+    setNotice(ok ? t('presets.exported', { name: preset.name }) : null)
   }
 
   const importFile = async (): Promise<void> => {
@@ -115,8 +117,8 @@ export function ThemePanel({ theme, presetId, onChange, onApplyPreset, onClose }
     setPresets(r.presets)
     if (r.imported) {
       onApplyPreset(r.imported)
-      setNotice(`Импортирован пресет «${r.imported.name}»`)
-    } else if (r.error) setNotice(`Не удалось импортировать: ${r.error}`)
+      setNotice(t('presets.imported', { name: r.imported.name }))
+    } else if (r.error) setNotice(t('presets.importFailed', { error: r.error }))
   }
 
   const pickImage = async (target: 'pattern' | 'logo'): Promise<void> => {
@@ -128,7 +130,7 @@ export function ThemePanel({ theme, presetId, onChange, onApplyPreset, onClose }
 
   const color = (key: 'bgColor' | 'digitColor' | 'textColor' | 'shadowColor'): React.JSX.Element => (
     <div className="color">
-      <input type="color" value={theme[key]} aria-label="Выбрать цвет" onChange={(e) => onChange({ [key]: e.target.value })} />
+      <input type="color" value={theme[key]} aria-label={t('colors.pick')} onChange={(e) => onChange({ [key]: e.target.value })} />
       <HexInput value={theme[key]} onChange={(v) => onChange({ [key]: v })} />
     </div>
   )
@@ -136,15 +138,15 @@ export function ThemePanel({ theme, presetId, onChange, onApplyPreset, onClose }
   return (
     <div className="panel">
       <div className="panel__head">
-        <span className="panel__title">Оформление</span>
-        <button className="panel__close" type="button" onClick={onClose} aria-label="Закрыть">
+        <span className="panel__title">{t('theme.title')}</span>
+        <button className="panel__close" type="button" onClick={onClose} aria-label={t('theme.close')}>
           ×
         </button>
       </div>
 
       <div className="panel__body">
         {/* ---- пресеты ---- */}
-        <Section id="t-presets" title="Пресеты" meta={dirty && preset ? 'текущий изменён' : undefined}>
+        <Section id="t-presets" title={t('presets.section')} meta={dirty && preset ? t('presets.dirty') : undefined}>
           <div className="form">
             <select
               id="preset"
@@ -154,7 +156,7 @@ export function ThemePanel({ theme, presetId, onChange, onApplyPreset, onClose }
                 if (p) onApplyPreset(p)
               }}
             >
-              {!preset && <option value="">- свой вариант -</option>}
+              {!preset && <option value="">{t('presets.custom')}</option>}
               {presets.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -167,7 +169,7 @@ export function ThemePanel({ theme, presetId, onChange, onApplyPreset, onClose }
               <input
                 className="preset-name"
                 autoFocus
-                placeholder="Название нового пресета"
+                placeholder={t('presets.namePlaceholder')}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 onKeyDown={(e) => {
@@ -176,35 +178,35 @@ export function ThemePanel({ theme, presetId, onChange, onApplyPreset, onClose }
                 }}
               />
               <button className="btn" type="button" disabled={!name.trim()} onClick={() => void saveAs()}>
-                Сохранить
+                {t('presets.save')}
               </button>
               <button className="btn" type="button" onClick={() => setNaming(false)}>
-                Отмена
+                {t('presets.cancel')}
               </button>
             </div>
           ) : confirmDelete && preset ? (
             <div className="toolbar">
-              <span className="toolbar__text">Удалить пресет «{preset.name}»?</span>
+              <span className="toolbar__text">{t('presets.deleteConfirm', { name: preset.name })}</span>
               <button className="btn btn--danger" type="button" onClick={() => void remove()}>
-                Удалить
+                {t('presets.delete')}
               </button>
               <button className="btn" type="button" onClick={() => setConfirmDelete(false)}>
-                Отмена
+                {t('presets.cancel')}
               </button>
             </div>
           ) : (
             <div className="toolbar">
               <div className="igroup">
-                <IconBtn title="Сохранить как новый пресет" onClick={() => setNaming(true)} icon="plus" />
-                <IconBtn title="Обновить текущий пресет" disabled={!preset || !dirty} onClick={() => void updateCurrent()} icon="save" />
-                <IconBtn title="Вернуть сохранённые значения пресета" disabled={!preset || !dirty} onClick={() => preset && onApplyPreset(preset)} icon="undo" />
+                <IconBtn title={t('presets.new')} onClick={() => setNaming(true)} icon="plus" />
+                <IconBtn title={t('presets.update')} disabled={!preset || !dirty} onClick={() => void updateCurrent()} icon="save" />
+                <IconBtn title={t('presets.revert')} disabled={!preset || !dirty} onClick={() => preset && onApplyPreset(preset)} icon="undo" />
               </div>
               <div className="igroup">
-                <IconBtn title="Экспорт пресета в файл" disabled={!preset} onClick={() => void exportFile()} icon="export" />
-                <IconBtn title="Импорт пресета из файла" onClick={() => void importFile()} icon="import" />
+                <IconBtn title={t('presets.export')} disabled={!preset} onClick={() => void exportFile()} icon="export" />
+                <IconBtn title={t('presets.import')} onClick={() => void importFile()} icon="import" />
               </div>
               <button className="btn btn--danger toolbar__right" type="button" disabled={!preset} onClick={() => setConfirmDelete(true)}>
-                Удалить
+                {t('presets.delete')}
               </button>
             </div>
           )}
@@ -212,39 +214,39 @@ export function ThemePanel({ theme, presetId, onChange, onApplyPreset, onClose }
         </Section>
 
         {/* ---- текст и шрифт ---- */}
-        <Section id="t-text" title="Текст">
+        <Section id="t-text" title={t('text.section')}>
           <div className="form">
             <label className="form__label" htmlFor="ttitle">
-              Название
+              {t('text.name')}
             </label>
-            <input id="ttitle" className="text" value={theme.title} maxLength={60} placeholder="Показывается, если нет логотипа" onChange={(e) => onChange({ title: e.target.value })} />
-            <span className="form__label">Шрифт</span>
+            <input id="ttitle" className="text" value={theme.title} maxLength={60} placeholder={t('text.namePlaceholder')} onChange={(e) => onChange({ title: e.target.value })} />
+            <span className="form__label">{t('text.font')}</span>
             <FontPicker theme={theme} onChange={onChange} />
           </div>
         </Section>
 
         {/* ---- цвета ---- */}
-        <Section id="t-colors" title="Цвета">
+        <Section id="t-colors" title={t('colors.section')}>
           <div className="row row--2">
             <div className="field">
-              <label>Фон</label>
+              <label>{t('colors.bg')}</label>
               {color('bgColor')}
             </div>
             <div className="field">
-              <label>Цифры</label>
+              <label>{t('colors.digit')}</label>
               {color('digitColor')}
             </div>
             <div className="field">
-              <label>Текст</label>
+              <label>{t('colors.text')}</label>
               {color('textColor')}
             </div>
             <div className="field">
-              <label>Тень цифр</label>
+              <label>{t('colors.shadow')}</label>
               {color('shadowColor')}
             </div>
           </div>
           <div className="form">
-            <span className="form__label">Плотность тени</span>
+            <span className="form__label">{t('colors.shadowOpacity')}</span>
             <label className="slider">
               <input type="range" min={0} max={100} value={Math.round(theme.shadowOpacity * 100)} onChange={(e) => onChange({ shadowOpacity: Number(e.target.value) / 100 })} />
               <span className="slider__value">{Math.round(theme.shadowOpacity * 100)}%</span>
@@ -252,15 +254,15 @@ export function ThemePanel({ theme, presetId, onChange, onApplyPreset, onClose }
           </div>
           <label className="check">
             <input type="checkbox" checked={theme.bgGlow} onChange={(e) => onChange({ bgGlow: e.target.checked })} />
-            <span>Светлое пятно в центре фона</span>
+            <span>{t('colors.glow')}</span>
           </label>
         </Section>
 
         {/* ---- конфетти ---- */}
-        <Section id="t-confetti" title="Конфетти" meta={theme.confetti ? `${theme.confettiColors.length} цв.` : 'выкл'}>
+        <Section id="t-confetti" title={t('confetti.section')} meta={theme.confetti ? t('confetti.meta', { n: theme.confettiColors.length }) : t('confetti.off')}>
           <label className="check">
             <input type="checkbox" checked={theme.confetti} onChange={(e) => onChange({ confetti: e.target.checked })} />
-            <span>Конфетти при объявлении победителя</span>
+            <span>{t('confetti.enabled')}</span>
           </label>
           {theme.confetti && (
             <div className="row row--2">
@@ -269,14 +271,14 @@ export function ThemePanel({ theme, presetId, onChange, onApplyPreset, onClose }
                   <input
                     type="color"
                     value={c}
-                    aria-label="Выбрать цвет"
+                    aria-label={t('colors.pick')}
                     onChange={(e) => onChange({ confettiColors: theme.confettiColors.map((x, j) => (j === i ? e.target.value : x)) })}
                   />
                   <HexInput value={c} onChange={(v) => onChange({ confettiColors: theme.confettiColors.map((x, j) => (j === i ? v : x)) })} />
                   <button
                     type="button"
                     className="color__remove"
-                    title="Убрать цвет"
+                    title={t('confetti.remove')}
                     disabled={theme.confettiColors.length <= 1}
                     onClick={() => onChange({ confettiColors: theme.confettiColors.filter((_, j) => j !== i) })}
                   >
@@ -290,7 +292,7 @@ export function ThemePanel({ theme, presetId, onChange, onApplyPreset, onClose }
                   className="btn"
                   onClick={() => onChange({ confettiColors: [...theme.confettiColors, theme.digitColor] })}
                 >
-                  + цвет
+                  {t('confetti.add')}
                 </button>
               )}
             </div>
@@ -298,9 +300,9 @@ export function ThemePanel({ theme, presetId, onChange, onApplyPreset, onClose }
         </Section>
 
         {/* ---- паттерн ---- */}
-        <Section id="t-pattern" title="Паттерн на фоне" meta={theme.patternKind === 'none' ? 'нет' : theme.patternName}>
+        <Section id="t-pattern" title={t('pattern.section')} meta={theme.patternKind === 'none' ? t('none') : theme.patternName}>
           <div className="form">
-            <span className="form__label">Картинка</span>
+            <span className="form__label">{t('image.label')}</span>
             <div className="form__row">
               <select
                 value={theme.patternKind}
@@ -310,23 +312,23 @@ export function ThemePanel({ theme, presetId, onChange, onApplyPreset, onClose }
                   else onChange({ patternKind: v as Theme['patternKind'] })
                 }}
               >
-                <option value="none">Нет</option>
-                <option value="file">{theme.patternKind === 'file' && theme.patternName ? theme.patternName : 'Файл…'}</option>
+                <option value="none">{t('image.none')}</option>
+                <option value="file">{theme.patternKind === 'file' && theme.patternName ? theme.patternName : t('image.file')}</option>
               </select>
               {theme.patternKind === 'file' && (
                 <button className="btn" type="button" onClick={() => void pickImage('pattern')}>
-                  Заменить…
+                  {t('image.replace')}
                 </button>
               )}
             </div>
             {theme.patternKind !== 'none' && (
               <>
-                <span className="form__label">Прозрачность</span>
+                <span className="form__label">{t('image.opacity')}</span>
                 <label className="slider">
                   <input type="range" min={0} max={100} value={Math.round(theme.patternOpacity * 100)} onChange={(e) => onChange({ patternOpacity: Number(e.target.value) / 100 })} />
                   <span className="slider__value">{Math.round(theme.patternOpacity * 100)}%</span>
                 </label>
-                <span className="form__label">Размер</span>
+                <span className="form__label">{t('image.size')}</span>
                 <label className="slider">
                   <input type="range" min={25} max={300} step={5} value={Math.round(theme.patternScale * 100)} onChange={(e) => onChange({ patternScale: Number(e.target.value) / 100 })} />
                   <span className="slider__value">{Math.round(theme.patternScale * 100)}%</span>
@@ -337,9 +339,9 @@ export function ThemePanel({ theme, presetId, onChange, onApplyPreset, onClose }
         </Section>
 
         {/* ---- логотип ---- */}
-        <Section id="t-logo" title="Логотип" meta={theme.logoKind === 'none' ? 'нет' : theme.logoName}>
+        <Section id="t-logo" title={t('logo.section')} meta={theme.logoKind === 'none' ? t('none') : theme.logoName}>
           <div className="form">
-            <span className="form__label">Картинка</span>
+            <span className="form__label">{t('image.label')}</span>
             <div className="form__row">
               <select
                 value={theme.logoKind}
@@ -349,18 +351,18 @@ export function ThemePanel({ theme, presetId, onChange, onApplyPreset, onClose }
                   else onChange({ logoKind: v as Theme['logoKind'] })
                 }}
               >
-                <option value="none">Нет (показывать название)</option>
-                <option value="file">{theme.logoKind === 'file' && theme.logoName ? theme.logoName : 'Файл…'}</option>
+                <option value="none">{t('image.noneShowTitle')}</option>
+                <option value="file">{theme.logoKind === 'file' && theme.logoName ? theme.logoName : t('image.file')}</option>
               </select>
               {theme.logoKind === 'file' && (
                 <button className="btn" type="button" onClick={() => void pickImage('logo')}>
-                  Заменить…
+                  {t('image.replace')}
                 </button>
               )}
             </div>
             {theme.logoKind !== 'none' && (
               <>
-                <span className="form__label">Размер</span>
+                <span className="form__label">{t('image.sizeCorner')}</span>
                 <label className="slider">
                   <input type="range" min={50} max={200} step={5} value={Math.round(theme.logoScale * 100)} onChange={(e) => onChange({ logoScale: Number(e.target.value) / 100 })} />
                   <span className="slider__value">{Math.round(theme.logoScale * 100)}%</span>

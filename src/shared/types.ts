@@ -1,27 +1,14 @@
 import { DEFAULT_PRESET_ID, DEFAULT_THEME, type Theme } from './theme'
+import type { Lang, LanguageSetting } from './i18n'
 
 /** Варианты анимации прокрутки; random - табло выбирает случайный на каждый розыгрыш */
 export const ANIMATIONS = ['drum', 'flip', 'zoom', 'slide', 'random'] as const
 export type Animation = (typeof ANIMATIONS)[number]
 export type ConcreteAnimation = Exclude<Animation, 'random'>
 
-export const ANIMATION_LABELS: Record<Animation, string> = {
-  drum: 'Барабан',
-  flip: 'Переворот',
-  zoom: 'Зум',
-  slide: 'Сдвиг',
-  random: 'Случайная'
-}
-
 /** Отступ от левого и правого края табло: на некоторых экранах края обрезаются */
 export const EDGE_MARGINS = ['small', 'medium', 'large'] as const
 export type EdgeMargin = (typeof EDGE_MARGINS)[number]
-
-export const EDGE_MARGIN_LABELS: Record<EdgeMargin, string> = {
-  small: 'Меньше',
-  medium: 'Средний',
-  large: 'Больше'
-}
 
 /** Настройки ведущего, хранятся в userData/settings.json */
 export interface Settings {
@@ -43,6 +30,8 @@ export interface Settings {
   presetId: string
   /** Дисплей для табло: 'auto' - второй (не основной), иначе id дисплея */
   boardDisplay: 'auto' | number
+  /** Язык интерфейса: 'auto' - по языку системы */
+  language: LanguageSetting
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -57,7 +46,8 @@ export const DEFAULT_SETTINGS: Settings = {
   alwaysOnTop: false,
   theme: DEFAULT_THEME,
   presetId: DEFAULT_PRESET_ID,
-  boardDisplay: 'auto'
+  boardDisplay: 'auto',
+  language: 'auto'
 }
 
 /** Пауза между остановкой барабана и объявлением победителя */
@@ -86,6 +76,7 @@ export interface BoardState {
   showHistory: boolean
   edgeMargin: EdgeMargin
   theme: Theme
+  lang: Lang
 }
 
 /** Выбранный пользователем файл, скопированный в папку данных приложения */

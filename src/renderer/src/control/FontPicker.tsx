@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { BUILTIN_FONTS, type Theme } from '@shared/theme'
+import { useT } from '../shared/lang'
 
 interface FontData {
   family: string
@@ -39,6 +40,7 @@ interface Props {
 
 /** Выбор шрифта: поиск по системным шрифтам с предпросмотром, встроенный Montserrat, файл шрифта */
 export function FontPicker({ theme, onChange }: Props): React.JSX.Element {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [fonts, setFonts] = useState<string[] | null>(systemFontsCache)
@@ -75,8 +77,8 @@ export function FontPicker({ theme, onChange }: Props): React.JSX.Element {
     theme.fontKind === 'builtin'
       ? (BUILTIN_FONTS.find((f) => f.id === theme.fontId)?.label ?? 'Montserrat')
       : theme.fontKind === 'file'
-        ? theme.fontName || 'Файл шрифта'
-        : theme.fontId || 'Системный шрифт'
+        ? theme.fontName || t('font.fileDefault')
+        : theme.fontId || t('font.systemDefault')
 
   const q = query.trim().toLowerCase()
   const items = useMemo(() => {
@@ -84,7 +86,7 @@ export function FontPicker({ theme, onChange }: Props): React.JSX.Element {
       key: `b:${f.id}`,
       label: f.label,
       family: f.family,
-      note: 'встроенный',
+      note: t('font.builtin'),
       apply: () => onChange({ fontKind: 'builtin', fontId: f.id })
     }))
     const system = (fonts ?? [])
@@ -98,6 +100,7 @@ export function FontPicker({ theme, onChange }: Props): React.JSX.Element {
         apply: () => onChange({ fontKind: 'system', fontId: f })
       }))
     return [...builtin, ...system]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fonts, q, onChange])
 
   useEffect(() => setActive(0), [q, fonts])
@@ -140,7 +143,7 @@ export function FontPicker({ theme, onChange }: Props): React.JSX.Element {
       >
         <span className="fontpick__name">{current}</span>
         <span className="fontpick__kind">
-          {theme.fontKind === 'builtin' ? 'встроенный' : theme.fontKind === 'file' ? 'файл' : 'системный'}
+          {t(theme.fontKind === 'builtin' ? 'font.builtin' : theme.fontKind === 'file' ? 'font.file' : 'font.system')}
         </span>
       </button>
       {open && (
@@ -148,14 +151,14 @@ export function FontPicker({ theme, onChange }: Props): React.JSX.Element {
           <input
             className="fontpick__search"
             autoFocus
-            placeholder={fonts ? `Поиск среди ${fonts.length} шрифтов…` : 'Поиск…'}
+            placeholder={fonts ? t('font.search', { n: fonts.length }) : t('font.searchShort')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKeyDown}
           />
           <div className="fontpick__list" ref={listRef}>
-            {!fonts && <div className="fontpick__empty">Читаю список системных шрифтов…</div>}
-            {fonts && items.length === 0 && <div className="fontpick__empty">Ничего не найдено</div>}
+            {!fonts && <div className="fontpick__empty">{t('font.loading')}</div>}
+            {fonts && items.length === 0 && <div className="fontpick__empty">{t('font.none')}</div>}
             {items.map((it, i) => (
               <button
                 type="button"
@@ -171,14 +174,14 @@ export function FontPicker({ theme, onChange }: Props): React.JSX.Element {
                   {it.label}
                 </span>
                 <span className="fontpick__preview" style={{ fontFamily: `'${it.family.replace(/'/g, '')}'` }}>
-                  1234567890 Абв
+                  {t('font.preview')}
                 </span>
                 {it.note && <span className="fontpick__note">{it.note}</span>}
               </button>
             ))}
           </div>
           <button type="button" className="btn fontpick__file" onClick={() => void pickFile()}>
-            Файл шрифта (.ttf, .otf, .woff2)…
+            {t('font.pickFile')}
           </button>
         </div>
       )}

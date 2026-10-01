@@ -1,12 +1,12 @@
 appId: kz.zhuzha.quizrandomizer
 productName: QuizRandomizer
-copyright: © Vladislav Zhuzha
+copyright: © Vladislav Zhuzha, MIT License
 directories:
   buildResources: build
   output: release
 files:
   - out/**/*
-  - resources/**/*
+  - presets/*.rpreset
   - package.json
 asar: true
 artifactName: quiz-randomizer-${version}-${os}-${arch}.${ext}
@@ -39,4 +39,4 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   shortcutName: QuizRandomizer
-  language: 1049
+  installerLanguages: [en_US, ru_RU]

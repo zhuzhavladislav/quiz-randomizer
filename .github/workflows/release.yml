@@ -69,9 +69,9 @@ jobs:
           body: |
             QuizRandomizer ${{ github.ref_name }}
 
-            - `*-win-x64.exe` - установщик для Windows
-            - `*-mac-arm64.dmg` - macOS на Apple Silicon (M1 и новее)
-            - `*-mac-x64.dmg` - macOS на Intel
+            - `*-win-x64.exe` - Windows installer
+            - `*-mac-arm64.dmg` - macOS on Apple Silicon (M1 and newer)
+            - `*-mac-x64.dmg` - macOS on Intel
 
-            Сборки не подписаны: на macOS первый запуск через правый клик → «Открыть»,
-            на Windows SmartScreen → «Подробнее» → «Выполнить в любом случае».
+            Builds are not code-signed: on macOS right-click the app and choose "Open" the first time;
+            on Windows click "More info" → "Run anyway" in SmartScreen.
